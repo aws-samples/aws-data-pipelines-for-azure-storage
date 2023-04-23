@@ -1,0 +1,1798 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: This CloudFormation Template deploys the AWS Cloud Intelligence Dashboard for Azure
+
+# Cloudformation Stack details menu
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Common Settings
+        Parameters:
+          - SourceBucket
+          - PrefixCode
+          - EnvironmentCode
+          - OwnerTag
+          - EnvironmentTag
+      - Label:
+          default: Microsoft Azure Settings
+        Parameters:
+          - AccountType
+          - AzureBlobURL
+          - AzureApplicationID
+          - AzureTenantID
+          - AzureSecretKey
+          - AzureDateFormat
+          - AzureFolderPath
+          - AzureTags
+      - Label:
+          default: Data Copy Settings
+        Parameters:
+          - AzureCopySchedule
+          - GlueCopySchedule
+          - BlobToS3SyncStartDate
+      - Label:
+          default: Advanced Settings
+        Parameters:
+          - PartitionSize
+          - MaxPartitionsPerFile
+          - UseFullFilePath
+
+# Common Parameters
+Parameters:
+  SourceBucket:
+    Description: S3 bucket containing AWS Cost Intelligence Dashboard for Azure installation files. The default value will search in s3://bucket01/folder01/
+    Default: bucket01/folder01
+    Type: String
+  PrefixCode:
+    Type: String
+    Default: cid
+    Description: Prefix used to name all resources created by this CloudFormation template. Cannot be 'aws'
+  EnvironmentCode:
+    Type: String
+    Default: pd
+    Description: Code used to name all resources created by this CloudFormation template e.g. 'pd' for production
+  OwnerTag:
+    Type: String
+    Default: Amazon Web Services
+    Description: Customer tag value. All resources are created with a 'Owner' tag and the value you set here
+  EnvironmentTag:
+    Type: String
+    Default: production
+    Description: Environment tag value. All resources are created with an 'Environment' tag and the value you set here
+
+# Microsoft Azure Parameters
+  AccountType:
+    Description: Microsoft Azure account type. Choose carefully, selecting the incorrect account type will cause errors
+    Default: MCA
+    Type: String
+    AllowedValues:
+      - MCA
+      - EA
+      - PTAX
+  AzureBlobURL:
+    Description: Microsoft Azure Primary Blob endpoint URL
+    Default: https://<mystorageaccount>.blob.core.windows.net/
+    Type: String
+  AzureApplicationID:
+    Description: Microsoft Azure Application ID
+    Default: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    Type: String
+  AzureTenantID:
+    Description: Microsoft Azure Tenant ID
+    Default: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    Type: String
+  AzureSecretKey:
+    Description: Microsoft Azure Client Secret
+    Default: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    Type: String
+  AzureDateFormat:
+    Description: format of date in Azure cost export, check the date column of your Azure csv export to verify.
+    Default: "MM/dd/yyyy"
+    Type: String
+    AllowedValues:
+      - MM/dd/yyyy
+      - dd/MM/yyyy
+      - yyyy-MM-dd
+  AzureFolderPath:
+    Description: path to Azure cost export folders, used by AWS Glue job. The default value is setup for <azure storage account>/<azure storage container>/directory/*
+    Default: directory/*
+    Type: String
+  AzureTags:
+    Description: List of Azure tags names you would like to bring across to QuickSight. WARNING leave a space after each comma. You will need at least one value, make one up if you don't have anything
+
+    Default: "Environment, CostCenter, System, Department"
+    Type: String
+
+# Data Copy Parameters
+  AzureCopySchedule:
+    Description: Scheduled time (UTC) for Azure data pull. Must be a CRON expression. The default sets the schedule to 3am daily
+    Type: String
+    Default: "cron(0 3 * * ? *)"
+  GlueCopySchedule:
+    Description: Scheduled time (UTC) for Glue data processing. Must be a CRON expression. The default sets the schedule to 4am daily. Must be after Azure data pull above
+    Type: String
+    Default: "cron(0 4 * * ? *)"
+  BlobToS3SyncStartDate:
+    Description: Minimum age of the objects to be copied. Must be a valid format (YYYYMMDD)
+    Type: String
+    Default: "20220820"
+
+# Advanced Parameters
+  PartitionSize:  
+    Description: Multipart upload partition size in bytes
+    Default: "104857600"
+    Type: String
+  MaxPartitionsPerFile:
+    Description: The maximum amount of partitions to create for each multi part file. Must be an integer between 5 and 10000
+    Default: "100"
+    Type: String
+  UseFullFilePath:
+    Description: Retain Azure storage path.
+    AllowedValues:
+      - true
+      - false
+    Default: "true"
+    Type: String
+
+Resources:
+######################################################################################################
+#                                         Infrastructure Stack                                       #
+###################################################################################################### 
+
+# Create a Resource Group for CloudFormation deployed resources
+  ResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties: 
+      Name: !Sub ${PrefixCode}rgg${EnvironmentCode}cidazure
+      Description: AWS Cloud Intelligence Dashboard for Azure resources
+      ResourceQuery: 
+        Type:
+          TAG_FILTERS_1_0 
+        Query:
+          ResourceTypeFilters: 
+            - AWS::AllSupported 
+          TagFilters:
+            - Key: Provisioner
+              Values: 
+                - CFN
+            - Key: Owner
+              Values: 
+                - !Sub ${OwnerTag}
+            - Key: Environment
+              Values: 
+                - !Sub ${EnvironmentTag}
+            - Key: Solution
+              Values: 
+                - AWSCIDforAzure
+      Tags: 
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: scaffold
+        - Key: Name
+          Value: !Sub ${PrefixCode}rgg${EnvironmentCode}cidazure
+
+# Create Secrets Manager secret
+  SecretsManagerSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${PrefixCode}sms${EnvironmentCode}cidazure
+      Description: AWS Cloud Intelligence Dashboard Secrets
+      KmsKeyId: !GetAtt KMSKey.Arn
+      SecretString: !Sub |
+        {
+          "tenantid":"${AzureTenantID}",
+          "appid":"${AzureApplicationID}",
+          "appsecret":"${AzureSecretKey}",
+          "bucket_name":"${S3Bucket}",
+          "isactive":"True",
+          "begindate":"${BlobToS3SyncStartDate}",
+          "sns_arn_l1":"${SNSTopicL1L2}",
+          "sns_arn_l2":"${SNSTopicL2L3}",
+          "sns_arn_l3":"${SNSTopicLargeFileInit}",
+          "sns_arn_l4":"${SNSTopicLargeFilePart}",
+          "sns_arn_l5":"${SNSTopicLargeFileRecomb}"
+        }
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sms${EnvironmentCode}cidazure
+ 
+# Create KMS key
+  KMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: AWS Cloud Intelligence Dashboard for Azure KMS Key
+      PendingWindowInDays: 7
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: key-default-1
+        Statement:
+          - Sid: Enable IAM User Permissions
+          # https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-overview.html
+            Effect: Allow
+            Principal: 
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: 
+                  - kms:*
+            Resource:
+                  - "*"
+          - Sid: Enable Cloudwatch access to KMS Key
+          # https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/encrypt-log-data-kms.html
+            Effect: Allow
+            Principal: 
+              Service: !Sub logs.${AWS::Region}.amazonaws.com
+            Action:
+                  - kms:Encrypt*
+                  - kms:Decrypt*
+                  - kms:ReEncrypt*
+                  - kms:GenerateDataKey*
+                  - kms:Describe*
+            Resource: 
+                  - "*"
+            Condition:
+              ArnLike:
+                "kms:EncryptionContext:aws:logs:arn": !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: security
+        - Key: Name
+          Value: !Sub ${PrefixCode}kms${EnvironmentCode}cidazure
+  KMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties: 
+      AliasName: !Sub alias/${PrefixCode}kms${EnvironmentCode}cidazure
+      TargetKeyId: !Ref KMSKey
+
+# Create S3 bucket to receive Azure Billing data
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete # Change as appropriate
+    Properties:
+      # BucketName: !Sub ${PrefixCode}sss${EnvironmentCode}cidazure01 # Add static bucket name if required
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref KMSKeyAlias
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: storage
+        - Key: Name
+          Value: !Sub ${PrefixCode}sss${EnvironmentCode}cidazure
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+            - Sid: Allow HTTPS only
+              Effect: Deny
+              Principal: "*"
+              Action: 
+                    - s3:*
+              Resource:
+                    - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}
+                    - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}/*
+              Condition:
+                Bool:
+                  aws:SecureTransport: false
+            - Sid: Allow TLS 1.2 and above
+              Effect: Deny
+              Principal: "*"
+              Action: 
+                    - s3:*
+              Resource:
+                    - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}
+                    - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}/*
+              Condition:
+                NumericLessThan:
+                  s3:TlsVersion: 1.2
+
+# Create IAM configuration used throughout stack
+  GlueIAM:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: AWS Cloud Intelligence Dashboard for Azure IAM role for Glue crawlers and Glue job
+      RoleName: !Sub ${PrefixCode}iar${EnvironmentCode}cidazureglue
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                  - glue.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${PrefixCode}iap${EnvironmentCode}cidazureglue
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:GetDatabase
+                  - glue:GetTable
+                  - glue:GetPartition
+                  - glue:UpdateDatabase
+                  - glue:UpdateTable
+                  - glue:UpdatePartition
+                  - glue:BatchCreatePartition
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog"
+                  - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabase}"
+                  - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:table/${GlueDatabase}/${GlueTable}"
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:GetObjectTagging
+                  - s3:PutObjectTagging
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}
+                  - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}/*
+                  - !Sub arn:${AWS::Partition}:s3:::${SourceBucket}*
+                  - !Sub arn:${AWS::Partition}:s3:::${SourceBucket}/*
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey
+                Resource:
+                  - !GetAtt KMSKey.Arn
+              - Effect: Allow
+                Action:
+                  - logs:AssociateKmsKey
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                  - ssm:GetParameter
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cidazure*
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: security
+        - Key: Name
+          Value: !Sub ${PrefixCode}iar${EnvironmentCode}cidazureglue
+  LambdaIAM:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: AWS Cloud Intelligence Dashboard for Azure IAM role for Lambda Functions
+      RoleName: !Sub ${PrefixCode}iar${EnvironmentCode}cidazurelambda
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                  - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${PrefixCode}iap${EnvironmentCode}cidazurelambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:ListBucket
+                  - s3:ListBucketMultipartUploads
+                  - s3:ListMultipartUploadParts
+                  - s3:AbortMultipartUpload
+                  - s3:CreateBucket
+                  - s3:Put*
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}
+                  - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}/*
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey
+                Resource:
+                  - !GetAtt KMSKey.Arn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetResourcePolicy
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                  - secretsmanager:ListSecretVersionIds
+                  - secretsmanager:UpdateSecret
+                Resource:
+                  - !Ref SecretsManagerSecret
+              - Effect: Allow
+                Action:
+                  - SNS:Publish
+                Resource:
+                  - !Ref SNSTopicL1L2
+                  - !Ref SNSTopicL2L3
+                  - !Ref SNSTopicLargeFileInit
+                  - !Ref SNSTopicLargeFilePart
+                  - !Ref SNSTopicLargeFileRecomb
+                  - !Ref SNSTopicDeadLetterQueue
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:CreateLogGroup
+                Resource:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: security
+        - Key: Name
+          Value: !Sub ${PrefixCode}iar${EnvironmentCode}cidazurelambda
+  EventBridgeIAM:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: IAM role for Azure Cost Intelligence Dashboard EventBridge Schedule
+      RoleName: !Sub ${PrefixCode}iar${EnvironmentCode}cidazureeventbrg
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${PrefixCode}iap${EnvironmentCode}cidazureeventbrg
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !Sub arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:event-bus/*
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: security
+        - Key: Name
+          Value: !Sub ${PrefixCode}iar${EnvironmentCode}cidazureeventbrg
+  QuickSightPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: !Sub ${PrefixCode}iap${EnvironmentCode}cidazurequicksight
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:ListMultipartUploadParts
+              - s3:GetBucketLocation
+              - s3:PutObject
+              - s3:GetObjectAcl
+              - s3:AbortMultipartUpload
+              - s3:ListMultipartUploadParts
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}
+              - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}/*
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:GenerateDataKey
+            Resource:
+              - !GetAtt KMSKey.Arn
+      Roles:
+        - aws-quicksight-service-role-v0
+# TODO: Replace with QuickSight role-based access control to data sources that connect to Amazon S3 and Athena
+
+# Create Glue Resources [No Glue Registry or Glue Schema in this CFN Template]
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      DatabaseInput:
+        Name: !Sub ${PrefixCode}gld${EnvironmentCode}cidazure
+        Description: Glue catalog database used to process Azure Cost Intelligence Dashboard data
+      CatalogId: !Ref AWS::AccountId
+  GlueDatabaseSecurity:
+    Type: AWS::Glue::DataCatalogEncryptionSettings
+    Properties: 
+      CatalogId: !Ref AWS::AccountId
+      DataCatalogEncryptionSettings: 
+        ConnectionPasswordEncryption: 
+          KmsKeyId: !GetAtt KMSKey.Arn
+          ReturnConnectionPasswordEncrypted: true
+        EncryptionAtRest: 
+          CatalogEncryptionMode: SSE-KMS
+          SseAwsKmsKeyId: !GetAtt KMSKey.Arn
+  GlueTable:
+    Type: AWS::Glue::Table
+    Properties:
+      DatabaseName: !Ref GlueDatabase
+      CatalogId: !Ref AWS::AccountId
+      TableInput:
+        Description: Glue catalog table for raw data used to by Azure Cost Intelligence Dashboard
+        Name: !Sub ${PrefixCode}glt${EnvironmentCode}cidazure
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          classification: parquet
+          EXTERNAL: true
+          parquet.compression: SNAPPY
+          typeOfData: file
+        PartitionKeys:
+          - Name: Month
+            Type: string
+        StorageDescriptor:
+          Location: !Sub s3://${S3Bucket}/azurecidparquet/
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          Compressed: true
+          StoredAsSubDirectories: true
+          SerdeInfo:
+            Parameters:
+              name: my-stream
+              serialization.format: "1"
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+          Columns:
+            - Name: AccountName
+              Type: string
+            - Name: AccountOwnerId
+              Type: string
+            - Name: AvailabilityZone
+              Type: string
+            - Name: benefitId
+              Type: string
+            - Name: BillingAccountId
+              Type: string
+            - Name: BillingAccountName
+              Type: string
+            - Name: BillingCurrency
+              Type: string
+            - Name: BillingPeriodEndDate
+              Type: string
+            - Name: billingperiodenddateparsed
+              Type: string
+            - Name: BillingPeriodStartDate
+              Type: string
+            - Name: billingperiodstartdateparsed
+              Type: string
+            - Name: BillingProfileId
+              Type: bigint
+            - Name: BillingProfileName
+              Type: string
+            - Name: ChargeType
+              Type: string
+            - Name: ConsumedService
+              Type: string
+            - Name: CostAllocationRuleName
+              Type: string
+            - Name: CostCenter
+              Type: string
+            - Name: CostInBillingCurrency
+              Type: double
+            - Name: Date
+              Type: string
+            - Name: DateParsed
+              Type: string
+            - Name: EffectivePrice
+              Type: double
+            - Name: Frequency
+              Type: string
+            - Name: InvoiceSectionId
+              Type: string
+            - Name: InvoiceSection
+              Type: string
+            - Name: IsAzureCreditEligible
+              Type: string
+            - Name: MeterCategory
+              Type: string
+            - Name: MeterId
+              Type: string
+            - Name: MeterName
+              Type: string
+            - Name: MeterRegion
+              Type: string
+            - Name: MeterSubCategory
+              Type: string
+            - Name: OfferId
+              Type: string
+            - Name: PartNumber
+              Type: string
+            - Name: PayGPrice
+              Type: bigint
+            - Name: PlanName
+              Type: string
+            - Name: PricingModel
+              Type: string
+            - Name: Product
+              Type: string
+            - Name: ProductOrderId
+              Type: string
+            - Name: ProductOrderName
+              Type: string
+            - Name: PublisherName
+              Type: string
+            - Name: PublisherType
+              Type: string
+            - Name: Quantity
+              Type: double
+            - Name: ReservationId
+              Type: string
+            - Name: ReservationName
+              Type: string
+            - Name: ResourceGroup
+              Type: string
+            - Name: ResourceId
+              Type: string
+            - Name: ResourceLocation
+              Type: string
+            - Name: ResourceName
+              Type: string
+            - Name: ServiceFamily
+              Type: string
+            - Name: ServiceInfo1
+              Type: string
+            - Name: ServiceInfo2
+              Type: string
+            - Name: SubscriptionId
+              Type: string
+            - Name: SubscriptionName
+              Type: string
+            - Name: Tags
+              Type: string
+            - Name: Term
+              Type: string
+            - Name: UnitOfMeasure
+              Type: string
+            - Name: UnitPrice
+              Type: double
+            - Name: AdditionalInfo
+              Type: struct<Provider:string,ConsumptionBeginTime:string,AppServicePlanUri:string,IpAddress:string,PlatformType:string,PipelineType:string,DataTransferDirection:string,GlobalDatabaseAccountName:string,CollectionName:string,CollectionRid:string,DatabaseName:string,UsageType:string,Region:string,ImageType:string,ServiceType:string,VMName:string,VMProperties:string,VCPUs:int,StorageService:string,MeteredService:string,NodesPerShardCount:string,MeteredServiceType:string,ServiceInfo:string,UsageResource:string,InfoFieldProject:string,HostNames:string,bucketId:string,zoneId:string,HostedServiceLabel:string,DeploymentLabel:string,vCores:int,SLO:string,UniqueResourceId:string,InfoField:string,ResourceCategory:string,TargetResourceID:string,EmittingService:string,AutoscaleVersion:string,AHB:string,ReservationOrderId:string,ReservationId:string,ConsumptionMeter:string,AccountName:string,PoolName:string,ConfigType:string,NodeType:string,PoolAllocationMode:string,gatewayName:string,vnetName:string>
+  # EA account type specific datafields as per documentation
+            - Name: BillingPeriod
+              Type: string
+            - Name: Cost
+              Type: double
+            - Name: Currency
+              Type: string
+            - Name: InvoiceSectionName
+              Type: string
+  # unknown account type datafields encountered in field
+            - Name: BillingCurrencyCode
+              Type: string
+            - Name: ProductName
+              Type: string
+  GlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Description: Glue ETL job for Azure Cost Intelligence Dashboard
+      Name: !Sub ${PrefixCode}glj${EnvironmentCode}cidazure
+      Role: !Ref GlueIAM
+      GlueVersion: "3.0"
+      WorkerType: G.1X
+      NumberOfWorkers: 5
+      MaxRetries: 3
+      Timeout: 30
+      Command: 
+        Name: glueetl
+        ScriptLocation: !Sub "s3://${SourceBucket}/cid-azure-gluejob-cfn.py"
+        PythonVersion: "3"
+      DefaultArguments:
+        "--enable-glue-datacatalog": true
+        "--enable-spark-ui": true
+        "--library-set": analytics
+        "--enable-metrics": ""
+        "--enable-job-insights": true
+        "--enable-auto-scaling": true
+        "--job-bookmark-option": job-bookmark-enable
+      SecurityConfiguration: !Ref GlueSecurity
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          data
+        Name:
+          !Sub ${PrefixCode}glj${EnvironmentCode}cidazure
+  GlueSecurity:
+    Type: AWS::Glue::SecurityConfiguration
+    Properties:
+      Name: !Sub ${PrefixCode}glx${EnvironmentCode}cidazure
+      EncryptionConfiguration: 
+        CloudWatchEncryption: 
+          CloudWatchEncryptionMode: SSE-KMS
+          KmsKeyArn: !GetAtt KMSKey.Arn
+        JobBookmarksEncryption: 
+          JobBookmarksEncryptionMode: CSE-KMS
+          KmsKeyArn: !GetAtt KMSKey.Arn
+        S3Encryptions:
+          - KmsKeyArn: !GetAtt KMSKey.Arn
+            S3EncryptionMode: SSE-KMS
+  GlueTrigger:
+    Type: AWS::Glue::Trigger
+    Properties:
+      Description: AWS Cloud Intelligence Dashboard for Azure Glue ETL job schedule
+      Name: !Sub ${PrefixCode}glt${EnvironmentCode}cidazure
+      Actions: 
+        - JobName: !Ref GlueJob
+      Schedule: !Sub ${GlueCopySchedule}
+      StartOnCreation: true
+      Type: SCHEDULED
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          data
+        Name:
+          !Sub ${PrefixCode}glt${EnvironmentCode}cidazure
+
+# Create System Manager Parameters used by Glue script
+  SMParameterVarsourcepath:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_source_path
+      Type: String
+      Value: !Sub s3://${S3Bucket}/azurecidraw/
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. S3 path to the raw folder where incoming CSV files are created.
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_source_path
+  SMParameterVardestinationpath:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_destination_path
+      Type: String
+      Value: !Sub s3://${S3Bucket}/azurecidparquet/
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. S3 path to the parquet folder where parquet files are created by the Glue job.
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_destination_path
+  SMParameterVarprocessedpath:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_processed_path
+      Type: String
+      Value: !Sub s3://${S3Bucket}/azurecidprocessed/
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. S3 path to the processed folder where CSV files are moved by Glue after processing.
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_processed_path
+  SMParameterVargluedatabase:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_glue_database
+      Type: String
+      Value: !Ref GlueDatabase
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Glue database name
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_glue_database
+  SMParameterVargluetable:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_glue_table
+      Type: String
+      Value: !Ref GlueTable
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Glue table name.
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_glue_table
+  SMParameterVarbucketname:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_bucketname
+      Type: String
+      Value: !Ref S3Bucket
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. S3 bucket name where Azure data is stored and processed.
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_bucketname
+  SMParameterVarsource:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_source
+      Type: String
+      Value: azurecidraw
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Name of the S3 folder containing incoming CSV files. This should be left as azurecidraw.
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_source
+  SMParameterVartarget:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_target
+      Type: String
+      Value: azurecidprocessed
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Name of the S3 folder to place CSV files after processing. This should be left as azurecidprocessed.
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_target
+  SMParameterVarAzureDateFormat:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_dateformat
+      Type: String
+      Value: !Sub ${AzureDateFormat}
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Date format used within Azure cost exports.
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_dateformat
+  SMParameterVarAzureFolderPath:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_folderpath
+      Type: String
+      Value: !Sub ${AzureFolderPath}
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter Glue job. S3 Folder structure for incoming CSV files. E.g directory/*
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_folderpath
+  SMParameterVarAzureTags:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_azuretags
+      Type: String
+      Value: !Sub ${AzureTags}
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Azure tags to be exposed to QuickSight.
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_azuretags
+  SMParameterVarAccountType:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_accounttype
+      Type: String
+      Value: !Sub ${AccountType}
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Microsoft account type used to determine export data schema.
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_azuretags
+#Create SSM Parameter to supply dashboard installation command
+  SMParameterDashboardDeploy:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-deploy_dashboard_command
+      Type: String
+      Value: !Sub cid-cmd deploy  --resources './cid-azure-dashboard.yaml' --customer '${PrefixCode}' --environment '${EnvironmentCode}' --athena-database '${GlueDatabase}'  --share-method 'account' --athena-workgroup '${AthenaWorkgroup}' --quicksight-datasource-id 'cid-azure-dashboard' --source-table '${GlueTable}' --dashboard-id 'cid-azure-dashboard'
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Command used to deploy dashboard
+      Tags:
+        Customer:
+          !Sub  ${OwnerTag}
+        Environment:
+          !Sub ${EnvironmentTag}
+        Provisioner:
+          CFN
+        Solution:
+          AWSCIDforAzure
+        Rtype:
+          parameter
+        Name:
+          !Sub ${PrefixCode}smp${EnvironmentCode}var_azuretags
+# Create Athena resources
+  AthenaWorkgroup:
+    Type: AWS::Athena::WorkGroup
+    Properties: 
+      Description: AWS Cloud Intelligence Dashboard for Azure Athena Workgroup
+      Name: !Sub ${PrefixCode}atw${EnvironmentCode}cidazure
+      RecursiveDeleteOption: true
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: true
+        ResultConfiguration:
+          EncryptionConfiguration:
+            EncryptionOption: SSE_KMS
+            KmsKey: !Ref KMSKey
+          OutputLocation: !Sub s3://${S3Bucket}/azurecidqueries
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: data
+        - Key: Name
+          Value: !Sub ${PrefixCode}atw${EnvironmentCode}cidazure
+
+# Generate Athena saved query. named query is for reference only and not used as part of automation 
+  AthenaQuery:
+    Type: AWS::Athena::NamedQuery
+    Properties: 
+      Database: !Ref GlueDatabase
+      Description: AWS Cloud Intelligence Dashboard for Azure Athena Named Query
+      Name: !Sub ${PrefixCode}atq${EnvironmentCode}cidazure
+      QueryString: 
+        !Sub CREATE OR REPLACE VIEW ${GlueTable}_athena_view AS SELECT * FROM ${GlueTable} WHERE month >= DATE(to_iso8601(current_date - interval '6' month))
+      WorkGroup: !Ref AthenaWorkgroup
+
+######################################################################################################
+#                                         Blob Copy Stack                                            #
+###################################################################################################### 
+
+# Create Lambda Functions
+  LambdaLayerVersionIdentity:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Description: AWS Cloud Intelligence Dashboard Azure identity layer
+      CompatibleRuntimes:
+        - python3.9
+      LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-identity
+      Content:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: azure-arm-identity.zip
+  LambdaLayerVersionStorage:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Description: AWS Cloud Intelligence Dashboard Azure storage layer
+      CompatibleRuntimes:
+        - python3.9
+      LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-storage
+      Content:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: azure-arm-storage.zip
+  LambdaFunction01:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS Cloud Intelligence Dashboard Lambda01 (blobcopy-launch-qualification)
+      Environment:
+        Variables:
+          bloburl: !Ref AzureBlobURL
+          secret: !Ref SecretsManagerSecret
+          partitionSize: !Ref PartitionSize
+          maxPartitionsPerFile: !Ref MaxPartitionsPerFile
+          UseFullFilePath: !Ref UseFullFilePath
+          resourcePrefix: !Ref PrefixCode
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda01
+      Handler: cid-azure-blobcopy-launch-qualification.lambda_handler
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: cid-azure-lambda01.zip
+      MemorySize: 128
+      ReservedConcurrentExecutions: 1
+      Role: !GetAtt LambdaIAM.Arn
+      Runtime: python3.9
+      Timeout: 90
+      TracingConfig:
+        Mode: Active
+      EphemeralStorage:
+        Size: 512
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopicDeadLetterQueue
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda01
+  LambdaFunction02:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS Cloud Intelligence Dashboard Lambda02 (blobcopy-find-blobs)
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda02
+      Handler: cid-azure-blobcopy-find-blobs.lambda_handler
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: cid-azure-lambda02.zip
+      MemorySize: 2560
+      ReservedConcurrentExecutions: 1
+      Role: !GetAtt LambdaIAM.Arn
+      Runtime: python3.9
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+      Layers:
+        - !Ref LambdaLayerVersionIdentity
+        - !Ref LambdaLayerVersionStorage
+      EphemeralStorage:
+        Size: 512
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopicDeadLetterQueue
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda02
+  LambdaFunction03:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS Cloud Intelligence Dashboard Lambda03 (blobcopy-download)
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda03
+      Handler: cid-azure-blobcopy-download.lambda_handler
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: cid-azure-lambda03.zip
+      MemorySize: 5120
+      Role: !GetAtt LambdaIAM.Arn
+      Runtime: python3.9
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+      Layers:
+        - !Ref LambdaLayerVersionIdentity
+        - !Ref LambdaLayerVersionStorage
+      EphemeralStorage:
+        Size: 5120
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopicDeadLetterQueue
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda03
+  LambdaFunction04:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS Cloud Intelligence Dashboard Lambda02 (blobcopy-largefile-initializer)
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda04
+      Handler: cid-azure-blobcopy-large-file-initiator.lambda_handler
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: cid-azure-lambda04.zip
+      MemorySize: 1024
+      Role: !GetAtt LambdaIAM.Arn
+      Runtime: python3.9
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+      EphemeralStorage:
+        Size: 512
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopicDeadLetterQueue
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda04
+  LambdaFunction05:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS Cloud Intelligence Dashboard Lambda02 (blobcopy-largefile-parter)
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda05
+      Handler: cid-azure-blobcopy-large-file-part.lambda_handler
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: cid-azure-lambda05.zip
+      MemorySize: 2056
+      Role: !GetAtt LambdaIAM.Arn
+      Runtime: python3.9
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+      Layers:
+        - !Ref LambdaLayerVersionIdentity
+        - !Ref LambdaLayerVersionStorage
+      EphemeralStorage:
+        Size: 512
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopicDeadLetterQueue
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda05
+  LambdaFunction06:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS Cloud Intelligence Dashboard Lambda02 (blobcopy-largefile-recombinater)
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda06
+      Handler: cid-azure-blobcopy-large-file-recombinator.lambda_handler
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: cid-azure-lambda06.zip
+      MemorySize: 1024
+      Role: !GetAtt LambdaIAM.Arn
+      Runtime: python3.9
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+      EphemeralStorage:
+        Size: 512
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopicDeadLetterQueue
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda06
+
+# Create SNS queues
+  SNSTopicL1L2:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ""
+      TopicName: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureL1_to_L2
+      KmsMasterKeyId: alias/aws/sns
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureL1_to_L2
+  SNSTopicL2L3:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ""
+      KmsMasterKeyId: alias/aws/sns
+      TopicName:  !Sub ${PrefixCode}sns${EnvironmentCode}cidazureL2_to_L3
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureL2_to_L3
+  SNSTopicLargeFileInit:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ""
+      KmsMasterKeyId: alias/aws/sns
+      TopicName: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFileInit
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFileInit
+  SNSTopicLargeFilePart:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ""
+      KmsMasterKeyId: alias/aws/sns
+      TopicName: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFilePart
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFilePart
+  SNSTopicLargeFileRecomb:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ""
+      KmsMasterKeyId: alias/aws/sns
+      TopicName: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFileRecomb
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFileRecomb
+  SNSTopicDeadLetterQueue:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ""
+      KmsMasterKeyId: alias/aws/sns
+      TopicName: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureDLQ
+      Tags:
+        - Key: Owner
+          Value: !Sub  ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureDLQ
+  SNSSubscriptionL1L2:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SNSTopicL1L2
+      Endpoint: !GetAtt LambdaFunction02.Arn
+      Protocol: lambda
+      Region: !Ref AWS::Region
+  SNSSubscriptionL2L3:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SNSTopicL2L3
+      Endpoint: !GetAtt LambdaFunction03.Arn
+      Protocol: lambda
+      Region: !Ref AWS::Region
+  SNSSubscriptionLargeFileInit:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SNSTopicLargeFileInit
+      Endpoint: !GetAtt LambdaFunction04.Arn
+      Protocol: lambda
+      Region: !Ref AWS::Region
+  SNSSubscriptionLargeFilePart:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SNSTopicLargeFilePart
+      Endpoint: !GetAtt LambdaFunction05.Arn
+      Protocol: lambda
+      Region: !Ref AWS::Region
+  SNSSubscriptionLargeFileRecomb:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SNSTopicLargeFileRecomb
+      Endpoint: !GetAtt LambdaFunction06.Arn
+      Protocol: lambda
+      Region: !Ref AWS::Region
+  LambdaPermissionL1L2:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction02.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopicL1L2
+  LambdaPermissionL2L3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction03.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopicL2L3
+  LambdaPermissionLargeFileInit:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction04.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopicLargeFileInit
+  LambdaPermissionLargeFilePart:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction05.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopicLargeFilePart
+  LambdaPermissionLargeFileRecomb:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction06.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopicLargeFileRecomb
+
+ # Create EventBridge schedule
+  ScheduledRule: 
+    Type: AWS::Events::Rule
+    Properties: 
+      Description: AWS Cloud Intelligence Dashboard Scheduled pull from Azure blob storage
+      Name: !Sub ${PrefixCode}evr${EnvironmentCode}cidazure
+      RoleArn: !GetAtt EventBridgeIAM.Arn
+      ScheduleExpression: !Sub ${AzureCopySchedule}
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: !GetAtt LambdaFunction01.Arn
+          Id: InvokeLaunchQualification
+  LambdaPermissionScheduledRule: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      FunctionName: !Ref LambdaFunction01
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt ScheduledRule.Arn
+  
+# Cloudwatch Dashboard
+  CloudwatchDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub ${PrefixCode}cwd${EnvironmentCode}cidazure
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${LambdaFunction01}", { "id": "m1" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${LambdaFunction02}", { "id": "m2" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${LambdaFunction03}", { "id": "m3" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${LambdaFunction04}", { "id": "m4" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${LambdaFunction05}", { "id": "m5" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${LambdaFunction06}", { "id": "m6" } ]
+                ],
+              "legend": {
+                  "position": "bottom"
+              },
+              "period": 300,
+              "view": "singleValue",
+              "stacked": false,
+              "title": "Lambda Invocations",
+              "stat": "Sum",
+              "liveData": true,
+              "sparkline": true,
+              "trend": true,
+              "setPeriodToTimeRange": false,
+              "start": "-PT168H",
+              "end": "PT0H",
+              "region": "${AWS::Region}",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 24
+              }
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${LambdaFunction01}", { "id": "m7" } ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${LambdaFunction02}", { "id": "m8" } ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${LambdaFunction03}", { "id": "m9" } ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${LambdaFunction04}", { "id": "m10" } ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${LambdaFunction05}", { "id": "m11" } ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${LambdaFunction06}", { "id": "m12" } ]
+                ],
+              "legend": {
+                  "position": "bottom"
+              },
+              "period": 300,
+              "view": "singleValue",
+              "stacked": false,
+              "title": "Lambda Errors",
+              "stat": "Sum",
+              "liveData": true,
+              "sparkline": true,
+              "trend": true,
+              "setPeriodToTimeRange": false,
+              "start": "-PT168H",
+              "end": "PT0H",
+              "region": "${AWS::Region}",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 24
+              }
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction01}", { "id": "m13" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction02}", { "id": "m14" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction03}", { "id": "m15" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction04}", { "id": "m16" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction05}", { "id": "m17" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction06}", { "id": "m18" } ]
+                ],
+              "legend": {
+                  "position": "bottom"
+              },
+              "period": 300,
+              "view": "singleValue",
+              "stacked": true,
+              "title": "Lambda Duration",
+              "stat": "p90",
+              "liveData": true,
+              "sparkline": true,
+              "trend": true,
+              "setPeriodToTimeRange": false,
+              "start": "-PT168H",
+              "end": "PT0H",
+              "region": "${AWS::Region}",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 24
+              }
+            },
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  [ "AWS/SNS", "NumberOfNotificationsFailed", "TopicName", "${SNSTopicL1L2.TopicName}", { "stat": "Sum", "id": "m10" } ],
+                  [ "AWS/SNS", "NumberOfNotificationsFailed", "TopicName", "${SNSTopicL2L3.TopicName}", { "stat": "Sum", "id": "m10" } ],
+                  [ "AWS/SNS", "NumberOfNotificationsFailed", "TopicName", "${SNSTopicLargeFileInit.TopicName}", { "stat": "Sum", "id": "m10" } ],
+                  [ "AWS/SNS", "NumberOfNotificationsFailed", "TopicName", "${SNSTopicLargeFilePart.TopicName}", { "stat": "Sum", "id": "m10" } ],
+                  [ "AWS/SNS", "NumberOfNotificationsFailed", "TopicName", "${SNSTopicLargeFileRecomb.TopicName}", { "stat": "Sum", "id": "m10" } ]
+                ],
+              "legend": {
+                  "position": "bottom"
+              },
+              "period": 300,
+              "view": "singleValue",
+              "stacked": true,
+              "title": "SNS Errors",
+              "stat": "p90",
+              "liveData": true,
+              "sparkline": true,
+              "trend": true,
+              "setPeriodToTimeRange": false,
+              "start": "-PT168H",
+              "end": "PT0H",
+              "region": "${AWS::Region}",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 24
+              }
+            },
+            {
+              "type": "log",
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction01}' | fields @timestamp, @log, @message | filter @message LIKE /ERROR/ or @message LIKE /Task timed out/ | sort @timestamp desc | limit 10",
+                "region": "${AWS::Region}",
+                "title": "Lambda01 Errors",
+                "view": "table"
+              },
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 2
+            },
+            {
+              "type": "log",
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction02}' | fields @timestamp, @log, @message | filter @message LIKE /ERROR/ or @message LIKE /Task timed out/ | sort @timestamp desc | limit 10",
+                "region": "${AWS::Region}",
+                "title": "Lambda02 Errors",
+                "view": "table"
+              },
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 4
+            },
+            {
+              "type": "log",
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction03}' | fields @timestamp, @log, @message | filter @message LIKE /ERROR/ or @message LIKE /Task timed out/ | sort @timestamp desc | limit 10",
+                "region": "${AWS::Region}",
+                "title": "Lambda03 Errors",
+                "view": "table"
+              },
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 6
+            },
+            {
+              "type": "log",
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction04}' | fields @timestamp, @log, @message | filter @message LIKE /ERROR/ or @message LIKE /Task timed out/ | sort @timestamp desc | limit 10",
+                "region": "${AWS::Region}",
+                "title": "Lambda04 Errors",
+                "view": "table"
+              },
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 8
+            },
+            {
+              "type": "log",
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction05}' | fields @timestamp, @log, @message | filter @message LIKE /ERROR/ or @message LIKE /Task timed out/ | sort @timestamp desc | limit 10",
+                "region": "${AWS::Region}",
+                "title": "Lambda05 Errors",
+                "view": "table"
+              },
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 10
+            },
+            {
+              "type": "log",
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction06}' | fields @timestamp, @log, @message | filter @message LIKE /ERROR/ or @message LIKE /Task timed out/ | sort @timestamp desc | limit 10",
+                "region": "${AWS::Region}",
+                "title": "Lambda06 Errors",
+                "view": "table"
+              },
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 12
+            },
+            {
+              "type": "log",
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction01}' | SOURCE '/aws/lambda/${LambdaFunction02}' | SOURCE '/aws/lambda/${LambdaFunction03}' | SOURCE '/aws/lambda/${LambdaFunction04}' | SOURCE '/aws/lambda/${LambdaFunction05}' | SOURCE '/aws/lambda/${LambdaFunction06}' | fields @timestamp, @log, @message | sort @timestamp desc | limit 300",
+                "region": "${AWS::Region}",
+                "title": "Lambda Trace",
+                "view": "table"
+              },
+              "width": 24,
+              "height": 9,
+              "x": 0,
+              "y": 14
+            }
+          ]
+        }
