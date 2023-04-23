@@ -1,0 +1,250 @@
+dashboards:
+  cid-azure-dashboard:
+    dependsOn:
+      datasets:
+        ${customer}gld${environment}cidazure: cid-azure-dashboard
+    name: '${customer} ${environment} Azure Cost Dashboard'
+    dashboardId: ${customer}-${environment}-azure-cost
+    templateId: cid-azure-cost
+    sourceAccountId: '446423066913'
+    region: eu-west-2
+datasets:
+  ${customer}gld${environment}cidazure:
+    data:
+      DataSetId: ${customer}gld${environment}cidazure
+      Name: ${customer}gld${environment}cidazure
+      PhysicalTableMap:
+        cbe14b4f-f64c-4d43-a2eb-54d818b0c6f7:
+          RelationalTable:
+            DataSourceArn: ${athena_datasource_arn}
+            Catalog: AwsDataCatalog
+            Schema: ${athena_database_name}
+            Name: cidgltpdcidazure_athena_view
+            InputColumns:
+            - Name: accountname
+              Type: STRING
+            - Name: accountownerid
+              Type: STRING
+            - Name: additionalinfo
+              Type: STRING
+            - Name: availabilityzone
+              Type: STRING
+            - Name: benefitid
+              Type: STRING
+            - Name: benefitname
+              Type: STRING
+            - Name: billingaccountid
+              Type: STRING
+            - Name: billingaccountname
+              Type: STRING
+            - Name: billingcurrency
+              Type: STRING
+            - Name: billingperiodenddate
+              Type: STRING
+            - Name: billingperiodstartdate
+              Type: STRING
+            - Name: billingprofileid
+              Type: INTEGER
+            - Name: billingprofilename
+              Type: STRING
+            - Name: chargetype
+              Type: STRING
+            - Name: consumedservice
+              Type: STRING
+            - Name: costallocationrulename
+              Type: STRING
+            - Name: costcenter
+              Type: STRING
+            - Name: costinbillingcurrency
+              Type: DECIMAL
+            - Name: date
+              Type: STRING
+            - Name: effectiveprice
+              Type: DECIMAL
+            - Name: frequency
+              Type: STRING
+            - Name: invoicesectionid
+              Type: STRING
+            - Name: invoicesectionname
+              Type: STRING
+            - Name: isazurecrediteligible
+              Type: BOOLEAN
+            - Name: metercategory
+              Type: STRING
+            - Name: meterid
+              Type: STRING
+            - Name: metername
+              Type: STRING
+            - Name: meterregion
+              Type: STRING
+            - Name: metersubcategory
+              Type: STRING
+            - Name: offerid
+              Type: STRING
+            - Name: partnumber
+              Type: STRING
+            - Name: paygprice
+              Type: INTEGER
+            - Name: planname
+              Type: STRING
+            - Name: pricingmodel
+              Type: STRING
+            - Name: product
+              Type: STRING
+            - Name: productorderid
+              Type: STRING
+            - Name: productordername
+              Type: STRING
+            - Name: publishername
+              Type: STRING
+            - Name: publishertype
+              Type: STRING
+            - Name: quantity
+              Type: DECIMAL
+            - Name: reservationid
+              Type: STRING
+            - Name: reservationname
+              Type: STRING
+            - Name: resourcegroup
+              Type: STRING
+            - Name: resourceid
+              Type: STRING
+            - Name: resourcelocation
+              Type: STRING
+            - Name: resourcename
+              Type: STRING
+            - Name: servicefamily
+              Type: STRING
+            - Name: serviceinfo1
+              Type: STRING
+            - Name: serviceinfo2
+              Type: STRING
+            - Name: subscriptionid
+              Type: STRING
+            - Name: subscriptionname
+              Type: STRING
+            - Name: tags
+              Type: STRING
+            - Name: term
+              Type: STRING
+            - Name: unitofmeasure
+              Type: STRING
+            - Name: unitprice
+              Type: DECIMAL
+            - Name: tags_map
+              Type: STRING
+            - Name: tag-environment
+              Type: STRING
+            - Name: tag-costcenter
+              Type: STRING
+            - Name: tag-system
+              Type: STRING
+            - Name: tag-department
+              Type: STRING
+            - Name: dateparsed
+              Type: DATETIME
+            - Name: billingperiodstartdateparsed
+              Type: DATETIME
+            - Name: billingperiodenddateparsed
+              Type: DATETIME
+            - Name: month
+              Type: DATETIME
+      LogicalTableMap:
+        7ec563be-a2e0-467c-89c2-d6b9cd4a430e:
+          Alias: cidgltpdcidazure_athena_view
+          DataTransforms:
+          - ProjectOperation:
+              ProjectedColumns:
+              - accountname
+              - accountownerid
+              - additionalinfo
+              - availabilityzone
+              - benefitid
+              - benefitname
+              - billingaccountid
+              - billingaccountname
+              - billingcurrency
+              - billingperiodenddate
+              - billingperiodstartdate
+              - billingprofileid
+              - billingprofilename
+              - chargetype
+              - consumedservice
+              - costallocationrulename
+              - costcenter
+              - costinbillingcurrency
+              - date
+              - effectiveprice
+              - frequency
+              - invoicesectionid
+              - invoicesectionname
+              - isazurecrediteligible
+              - metercategory
+              - meterid
+              - metername
+              - meterregion
+              - metersubcategory
+              - offerid
+              - partnumber
+              - paygprice
+              - planname
+              - pricingmodel
+              - product
+              - productorderid
+              - productordername
+              - publishername
+              - publishertype
+              - quantity
+              - reservationid
+              - reservationname
+              - resourcegroup
+              - resourceid
+              - resourcelocation
+              - resourcename
+              - servicefamily
+              - serviceinfo1
+              - serviceinfo2
+              - subscriptionid
+              - subscriptionname
+              - tags
+              - term
+              - unitofmeasure
+              - unitprice
+              - tags_map
+              - tag-environment
+              - tag-costcenter
+              - tag-system
+              - tag-department
+              - dateparsed
+              - billingperiodstartdateparsed
+              - billingperiodenddateparsed
+              - month
+          Source:
+            PhysicalTableId: cbe14b4f-f64c-4d43-a2eb-54d818b0c6f7
+      ImportMode: SPICE
+    dependsOn:
+      views:
+      - ${customer}gld${environment}cidazure_athena_view
+views:
+  ${customer}gld${environment}cidazure_athena_view:
+    dependsOn:
+      views:
+      - ${customer}gld${environment}cidazure
+    data: |-
+      CREATE OR REPLACE VIEW ${athena_database_name}.${customer}gld${environment}cidazure_athena_view AS
+      SELECT *
+      FROM
+        ${source_table}
+      WHERE month >= DATE(to_iso8601(current_date - interval '6' month))
+#        ${customer}glt${environment}cidazure
+
+parameters:
+  customer:
+    default: 'cid'
+    description: id of customer. Can be any alphanumeric string
+  environment:
+    default: 'pd'
+    description: 'Environment type (pd=prod, pp=preprod, sb=sandbox). Can be any alphanumeric string'
+  source_table:
+    default: 'cidgltpdcidazure'
+    description: 'name of table'
