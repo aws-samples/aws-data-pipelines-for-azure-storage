@@ -97,7 +97,7 @@ import os
 try:
     df1 = spark.read.option("header","true").option("delimiter",",").option("escape", "\"").csv(var_raw_path)
 except Exception as e:
-    print("WARNING: Cannot read CSV file(s) in {}. Incorrect path or folder empty. Ending gracefully".format(var_raw_path))
+    print("WARNING: Cannot read CSV file(s) in {}. Incorrect path or folder empty.".format(var_raw_path))
     print("ERROR: {}".format(e))
     raise e
 
@@ -116,32 +116,32 @@ df1 = df1.withColumn("Tags_map", tagsTransformToMapUDF(col("Tags")))
 for tag in SELECTED_TAGS:
     df1 = df1.withColumn("tag-"+tag, df1.Tags_map.getItem(tag))
 
-# Parse date columns and cast non string datatypes. Identify account type (EA+MCA) and cast datatypes
+# Identify account type parse dates and cast datatypes
 from pyspark.sql.functions import to_date
 from pyspark.sql.functions import col
 from pyspark.sql.types import *
 
 try:
     if var_account_type == "EA" or var_account_type == "MCA":
+        # Rename Cost column to CostinBillingCurrency
         if "Cost" in df1.columns:
-            cost_column = "Cost"
-        else:
-            cost_column = "CostInBillingCurrency"
+            df1 = df1.withColumnRenamed("Cost", "CostInBillingCurrency")
         df2 = df1.withColumn("DateParsed", to_date(df1.Date, var_date_format)) \
             .withColumn("BillingPeriodStartDateParsed", to_date(df1.BillingPeriodStartDate, var_date_format)) \
             .withColumn("BillingPeriodEndDateParsed", to_date(df1.BillingPeriodEndDate, var_date_format)) \
             .withColumn("BillingProfileId", col("BillingProfileId").cast(LongType())) \
-            .withColumn(cost_column, col(cost_column).cast(DecimalType(21, 16))) \
+            .withColumn("CostInBillingCurrency", col("CostInBillingCurrency").cast(DecimalType(21, 16))) \
             .withColumn("EffectivePrice", col("EffectivePrice").cast(DecimalType(21, 16))) \
             .withColumn("IsAzureCreditEligible", col("IsAzureCreditEligible").cast(BooleanType())) \
             .withColumn("PayGPrice", col("PayGPrice").cast(LongType())) \
             .withColumn("Quantity", col("Quantity").cast(DoubleType())) \
             .withColumn("UnitPrice", col("UnitPrice").cast(DoubleType()))
 
-    # Identify account type (PTAX) and cast datatypes
     if var_account_type == "PTAX":
+        # Rename PreTaxCost column to CostinBillingCurrency
+        df1 = df1.withColumnRenamed("PreTaxCost", "CostInBillingCurrency")
         df2 = df1.withColumn("DateParsed", to_date(df1.UsageDateTime, var_date_format)) \
-            .withColumn("PreTaxCost", col("PreTaxCost").cast(DecimalType(21, 16))) \
+            .withColumn("CostInBillingCurrency", col("CostInBillingCurrency").cast(DecimalType(21, 16))) \
             .withColumn("UsageQuantity", col("UsageQuantity").cast(DoubleType())) \
             .withColumn("ResourceRate", col("ResourceRate").cast(DoubleType()))
 except Exception as e:
