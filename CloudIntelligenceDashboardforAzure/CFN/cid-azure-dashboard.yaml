@@ -1,11 +1,11 @@
 dashboards:
-  CIDFORAZURETEMPLATE02:
+  AWSCIDFORAZURE:
     dependsOn:
       datasets:
-        ${customer}gld${environment}cidazure: CIDforAzureTEMPLATE02
+        ${customer}gld${environment}cidazure: AWSCIDforAzure
     name: "${customer} ${environment} Azure Cost Dashboard"
     dashboardId: ${customer}-${environment}-azure-cost
-    templateId: cidforazuretemplate02
+    templateId: cid-azure-cost
     sourceAccountId: "446423066913"
     region: eu-west-2
 datasets:
