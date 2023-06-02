@@ -1,8 +1,8 @@
 dashboards:
-  AWSCIDFORAZURE:
+  CIDFORAZURETEMPLATE02:
     dependsOn:
       datasets:
-        ${customer}gld${environment}cidazure: AWSCIDforAzure
+        ${customer}gld${environment}cidazure: CIDforAzureTEMPLATE02
     name: "${customer} ${environment} Azure Cost Dashboard"
     dashboardId: ${customer}-${environment}-azure-cost
     templateId: cidforazuretemplate02
