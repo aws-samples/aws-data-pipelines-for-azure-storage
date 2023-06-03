@@ -14,7 +14,7 @@ datasets:
       DataSetId: ${customer}gld${environment}cidazure
       Name: ${customer}gld${environment}cidazure
       PhysicalTableMap:
-        cbe14b4f-f64c-4d43-a2eb-54d818b0c6f7:
+        4dae6f38-bac9-4a59-ace7-4ad725cb3c9d:
           RelationalTable:
             DataSourceArn: ${athena_datasource_arn}
             Catalog: AwsDataCatalog
@@ -150,7 +150,7 @@ datasets:
               - Name: month
                 Type: DATETIME
       LogicalTableMap:
-        7ec563be-a2e0-467c-89c2-d6b9cd4a430e:
+        9f457682-4997-40ac-a340-bd5cfabaac30:
           Alias: ${customer}gld${environment}cidazure_athena_view
           DataTransforms:
             - ProjectOperation:
@@ -220,7 +220,7 @@ datasets:
                   - billingperiodenddateparsed
                   - month
           Source:
-            PhysicalTableId: cbe14b4f-f64c-4d43-a2eb-54d818b0c6f7
+            PhysicalTableId: 4dae6f38-bac9-4a59-ace7-4ad725cb3c9d
       ImportMode: SPICE
     dependsOn:
       views:
@@ -229,7 +229,7 @@ views:
   ${customer}gld${environment}cidazure_athena_view:
     dependsOn:
       views:
-        - ${customer}gld${environment}cidazure
+        - ${customer}glt${environment}cidazure
     data: |-
       CREATE OR REPLACE VIEW ${athena_database_name}.${customer}gld${environment}cidazure_athena_view AS
       SELECT *
