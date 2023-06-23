@@ -561,17 +561,6 @@ Resources:
         Name: !Sub ${PrefixCode}gld${EnvironmentCode}cidazure
         Description: Glue catalog database used to process Azure Cloud Intelligence Dashboard data
       CatalogId: !Ref AWS::AccountId
-  GlueDatabaseSecurity:
-    Type: AWS::Glue::DataCatalogEncryptionSettings
-    Properties:
-      CatalogId: !Ref AWS::AccountId
-      DataCatalogEncryptionSettings:
-        ConnectionPasswordEncryption:
-          KmsKeyId: !GetAtt KMSKey.Arn
-          ReturnConnectionPasswordEncrypted: true
-        EncryptionAtRest:
-          CatalogEncryptionMode: SSE-KMS
-          SseAwsKmsKeyId: !GetAtt KMSKey.Arn
   GlueTable:
     Type: AWS::Glue::Table
     Properties:
