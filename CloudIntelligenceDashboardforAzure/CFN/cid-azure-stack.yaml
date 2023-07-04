@@ -970,7 +970,7 @@ Resources:
       Name: cidazure-var_bulk_run
       Type: String
       Value: "true"
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. True if this is the first data copy or you are reprocessing, otherwise false
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter.Set to true (lowercase t) if this is the first data copy or you are reprocessing, otherwise false.
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
