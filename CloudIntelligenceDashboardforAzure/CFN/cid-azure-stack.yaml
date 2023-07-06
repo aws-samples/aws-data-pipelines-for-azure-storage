@@ -729,7 +729,7 @@ Resources:
       WorkerType: G.1X
       NumberOfWorkers: 5
       MaxRetries: 0
-      Timeout: 30
+      Timeout: 60
       Command:
         Name: glueetl
         ScriptLocation: !Sub "s3://${SourceBucket}/cid-azure-gluejob-cfn.py"
