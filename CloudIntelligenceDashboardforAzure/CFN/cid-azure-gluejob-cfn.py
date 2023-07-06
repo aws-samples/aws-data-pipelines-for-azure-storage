@@ -133,9 +133,6 @@ df1 = df1.withColumn("Tags_map", tagsTransformToMapUDF(col("Tags")))
 for tag in SELECTED_TAGS:
     df1 = df1.withColumn("tag-"+tag, df1.Tags_map.getItem(tag))
 
-# drop tag mapping column
-df1 = df1.drop('Tags_map')
-
 # Identify account type parse dates and cast datatypes
 from pyspark.sql.functions import to_date
 from pyspark.sql.functions import col
