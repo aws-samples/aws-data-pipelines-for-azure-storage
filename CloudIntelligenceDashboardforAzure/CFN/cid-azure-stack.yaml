@@ -598,11 +598,11 @@ Resources:
               Type: string
             - Name: benefitId
               Type: string
-            - Name: BillingAccountId
+            - Name: billingAccountId
               Type: string
-            - Name: BillingAccountName
+            - Name: billingAccountName
               Type: string
-            - Name: BillingCurrency
+            - Name: billingCurrency
               Type: string
             - Name: BillingPeriodEndDate
               Type: string
@@ -718,6 +718,7 @@ Resources:
               Type: string
             - Name: ProductName
               Type: string
+
   GlueJob:
     Type: AWS::Glue::Job
     Properties:
