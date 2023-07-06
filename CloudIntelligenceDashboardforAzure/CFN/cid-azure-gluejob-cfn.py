@@ -31,32 +31,48 @@ var_raw_folder = ((ssm_client.get_parameter(Name="cidazure-var_raw_folder"))['Pa
 var_raw_path = ((ssm_client.get_parameter(Name="cidazure-var_raw_path"))["Parameter"]["Value"])+((ssm_client.get_parameter(Name="cidazure-var_folderpath"))["Parameter"]["Value"])
 SELECTED_TAGS = ((ssm_client.get_parameter(Name="cidazure-var_azuretags"))['Parameter']['Value']).split(", ")
 
-# Functions
-def move_to_error_folder(var_bucket, var_raw_folder, var_error_folder):
-    s3 = boto3.resource('s3')
-    bucket = s3.Bucket(var_bucket)
-    # Copy file(s) to error folder
-    for obj in bucket.objects.filter(Prefix=var_raw_folder):
-        copy_source = {'Bucket': var_bucket, 'Key': obj.key}
-        target_key = obj.key.replace(var_raw_folder, var_error_folder)
-        s3.Object(var_bucket, target_key).copy_from(CopySource=copy_source, TaggingDirective='COPY')
-    # Delete file(s) from raw folder
-    bucket.objects.filter(Prefix=var_raw_folder).delete()
+# Copy Function
+import concurrent.futures
+def copy_s3_objects(source_bucket, source_folder, destination_bucket, destination_folder):
+    s3_client = boto3.client('s3')
+    def copy_object(obj):
+        copy_source = {'Bucket': source_bucket, 'Key': obj['Key']}
+        target_key = obj['Key'].replace(source_folder, destination_folder)
+        s3_client.copy_object(Bucket=destination_bucket, Key=target_key, CopySource=copy_source, TaggingDirective='COPY')
+        print("INFO: "f"Object copied: {obj['Key']}")
+    # Get the list of files
+    response = s3_client.list_objects(Bucket=source_bucket, Prefix=source_folder)
+    objects = response.get('Contents', [])
+    if objects:
+        # Copy files using concurrent futures
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            executor.map(copy_object, objects)
+        print("INFO: Copy process complete")
+    else:
+        print(("INFO: No files in {}, copy process skipped.").format(source_folder))
+
+# Delete Function
+def delete_s3_folder(bucket, folder):
+    s3_client = boto3.client('s3')
+    response = s3_client.list_objects(Bucket=bucket, Prefix=folder)
+    objects = response.get('Contents', [])
+    if objects:
+        delete_keys = [{'Key': obj['Key']} for obj in objects]
+        s3_client.delete_objects(Bucket=bucket, Delete={'Objects': delete_keys})
+        print("INFO: Delete process complete")
+    else:
+        print(("INFO: No files in {}, delete process skipped.").format(folder))
 
 # Bulk Run. Process only latest object for each month.
 from datetime import datetime
 
 if var_bulk_run == 'true':
-    s3 = boto3.resource('s3')
     # Copy CSV files from raw to processed
-    for obj in s3.Bucket(var_bucket).objects.filter(Prefix=var_raw_folder):
-        copy_source = {'Bucket': var_bucket, 'Key': obj.key}
-        target_key = obj.key.replace(var_raw_folder, var_processed_folder)
-        s3.Object(var_bucket, target_key).copy_from(CopySource=copy_source, TaggingDirective='COPY')
+    copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_processed_folder)
     # Delete raw files
-    s3.Bucket(var_bucket).objects.filter(Prefix=var_raw_folder).delete()
+    delete_s3_folder(var_bucket, var_raw_folder)
     # Delete parquet files
-    s3.Bucket(var_bucket).objects.filter(Prefix=var_parquet_folder).delete()
+    delete_s3_folder(var_bucket, var_parquet_folder)
     # Create dictionary to store latest modified file for each month
     s3 = boto3.client('s3')
     tag_key = 'lastmodified'
@@ -85,7 +101,8 @@ if var_bulk_run == 'true':
     for parent_key, file_info in latest_files.items():
         key = file_info['key']
         new_key = key.replace(var_processed_folder, var_raw_folder)
-        s3.copy_object(Bucket=var_bucket, CopySource={'Bucket': var_bucket, 'Key': key}, Key=new_key)
+        copy_s3_objects(var_bucket, key, var_bucket, new_key)
+
     # Change bulk_run ssm parameter to false
     ssm_client.put_parameter(Name='cidazure-var_bulk_run',Value='false',Type='String',Overwrite=True)
 else:
@@ -115,6 +132,9 @@ df1 = df1.withColumn("Tags_map", tagsTransformToMapUDF(col("Tags")))
 # Create columns per selected tag with values
 for tag in SELECTED_TAGS:
     df1 = df1.withColumn("tag-"+tag, df1.Tags_map.getItem(tag))
+
+# drop tag mapping column
+df1 = df1.drop('Tags_map')
 
 # Identify account type parse dates and cast datatypes
 from pyspark.sql.functions import to_date
@@ -146,7 +166,8 @@ try:
             .withColumn("ResourceRate", col("ResourceRate").cast(DoubleType()))
 except Exception as e:
     # If the file(s) cannot be processed, move to the error folder
-    move_to_error_folder(var_bucket, var_raw_folder, var_error_folder)
+    copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
+    delete_s3_folder(var_bucket, var_raw_folder)
     print("WARNING: Cannot parse columns. Error in CSV file(s). Moving to error folder")
     print("ERROR: {}".format(e))
     raise e
@@ -172,7 +193,8 @@ try:
         print("INFO: Parquet folder does not exist. No files to deduplicate")
 except Exception as e:
     # If the file(s) cannot be processed move to error folder
-    move_to_error_folder(var_bucket, var_raw_folder, var_error_folder)
+    copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
+    delete_s3_folder(var_bucket, var_raw_folder)
     print("WARNING: Cannot deduplicate. Error in CSV file(s). Moving to error folder")
     print("ERROR: {}".format(e))
     raise e
@@ -188,20 +210,17 @@ try:
     sink.writeFrame(dyf3)
 except Exception as e:
     # If the file(s) cannot be processed move to error folder
-    move_to_error_folder(var_bucket, var_raw_folder, var_error_folder)
+    copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
+    delete_s3_folder(var_bucket, var_raw_folder)
     print("WARNING: Cannot convert file(s) to parquet. Moving to error folder")
     print("ERROR: {}".format(e))
     raise e
 
 # Copy CSV files from raw to processed
-s3 = boto3.resource('s3')
-for obj in s3.Bucket(var_bucket).objects.filter(Prefix=var_raw_folder):
-    copy_source = {'Bucket': var_bucket, 'Key': obj.key}
-    target_key = obj.key.replace(var_raw_folder, var_processed_folder)
-    s3.Object(var_bucket, target_key).copy_from(CopySource=copy_source, TaggingDirective='COPY')
+copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_processed_folder)
 
 # Delete raw files
-s3.Bucket(var_bucket).objects.filter(Prefix=var_raw_folder).delete()
+delete_s3_folder(var_bucket, var_raw_folder)
 
 # Sample Jupyter Notebook tests
 # df2.select('Date','DateParsed','BillingPeriodStartDate','BillingPeriodStartDateParsed','BillingPeriodEndDate','BillingPeriodEndDateParsed','Month','ResourceId','AdditionalInfo').show(10)
