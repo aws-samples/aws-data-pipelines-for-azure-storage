@@ -1,0 +1,1145 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: This CloudFormation Template deploys the Azure Blob to Amazon S3 Copy Solution
+
+# Cloudformation Stack details menu
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Common Settings
+        Parameters:
+          - SourceBucket
+          - PrefixCode
+          - EnvironmentCode
+          - OwnerTag
+          - EnvironmentTag
+      - Label:
+          default: Microsoft Azure Settings
+        Parameters:
+          - AzureBlobURL
+          - AzureApplicationID
+          - AzureTenantID
+          - AzureSecretKey
+      - Label:
+          default: Data Copy Settings
+        Parameters:
+          - AzureCopySchedule
+          - BlobToS3SyncStartDate
+      - Label:
+          default: Advanced Settings (DO NOT CHANGE)
+        Parameters:
+          - PartitionSize
+          - MaxPartitionsPerFile
+          - UseFullFilePath
+
+# Common Parameters
+Parameters:
+  SourceBucket:
+    Description: The new S3 bucket created which contains Azure Blob to Amazon S3 Copy installation/source files
+    Default: bucketname
+    Type: String
+  PrefixCode:
+    Description: Prefix used to name all resources created by this CloudFormation template. Cannot be 'aws'. e.g. department name, business unit, project name
+    Type: String
+    Default: azs3
+  EnvironmentCode:
+    Type: String
+    Default: pd
+    Description: Code used to name all resources created by this CloudFormation template e.g. 'pd' for production
+  OwnerTag:
+    Type: String
+    Default: Amazon Web Services
+    Description: Owner tag value. All resources are created with an 'Owner' tag and the value you set here. e.g. finops, devops, IT shared services, etc.
+  EnvironmentTag:
+    Type: String
+    Default: production
+    Description: Environment tag value. All resources are created with an 'Environment' tag and the value you set here. e.g. production, staging, development
+
+  # Microsoft Azure Parameters
+  AzureBlobURL:
+    Description: Microsoft Azure Primary Blob endpoint URL
+    Default: https://<mystorageaccount>.blob.core.windows.net/
+    Type: String
+  AzureApplicationID:
+    Description: Microsoft Azure Application ID
+    Default: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    Type: String
+  AzureTenantID:
+    Description: Microsoft Azure Tenant ID
+    Default: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    Type: String
+  AzureSecretKey:
+    Description: Microsoft Azure Client Secret
+    Default: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    Type: String
+
+  # Data Copy Parameters
+  AzureCopySchedule:
+    Description: Scheduled time (UTC) for Azure data pull. Must be a CRON expression. The default sets the schedule to 3am daily
+    Type: String
+    Default: "cron(0 3 * * ? *)"
+  BlobToS3SyncStartDate:
+    Description: Minimum age of the objects to be copied. Must be a valid format (YYYYMMDD)
+    Type: String
+    Default: "20220820"
+
+  # Advanced Parameters
+  PartitionSize:
+    Description: Multipart upload partition size in bytes
+    Default: "104857600"
+    Type: String
+  MaxPartitionsPerFile:
+    Description: The maximum amount of partitions to create for each multi part file. Must be an integer between 5 and 10000
+    Default: "100"
+    Type: String
+  UseFullFilePath:
+    Description: Retain Azure storage path.
+    AllowedValues:
+      - true
+      - false
+    Default: "true"
+    Type: String
+
+Resources:
+  ######################################################################################################
+  #                                         Infrastructure Stack                                       #
+  ######################################################################################################
+
+  # Create a Resource Group for CloudFormation deployed resources
+  ResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name: !Sub ${PrefixCode}rgg${EnvironmentCode}azs3copy
+      Description: Azure Blob to Amazon S3 Copy resources
+      ResourceQuery:
+        Type: TAG_FILTERS_1_0
+        Query:
+          ResourceTypeFilters:
+            - AWS::AllSupported
+          TagFilters:
+            - Key: Provisioner
+              Values:
+                - CFN
+            - Key: Owner
+              Values:
+                - !Sub ${OwnerTag}
+            - Key: Environment
+              Values:
+                - !Sub ${EnvironmentTag}
+            - Key: Solution
+              Values:
+                - azs3copy
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: scaffold
+        - Key: Name
+          Value: !Sub ${PrefixCode}rgg${EnvironmentCode}azs3copy
+
+  # Create Secrets Manager secret
+  SecretsManagerSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${PrefixCode}sms${EnvironmentCode}azs3copy
+      Description: Azure Blob to Amazon S3 Copy Secrets
+      KmsKeyId: !GetAtt KMSKey.Arn
+      SecretString: !Sub |
+        {
+          "tenantid":"${AzureTenantID}",
+          "appid":"${AzureApplicationID}",
+          "appsecret":"${AzureSecretKey}",
+          "bucket_name":"${S3Bucket}",
+          "isactive":"True",
+          "begindate":"${BlobToS3SyncStartDate}",
+          "sns_arn_l1":"${SNSTopicL1L2}",
+          "sns_arn_l2":"${SNSTopicL2L3}",
+          "sns_arn_l3":"${SNSTopicLargeFileInit}",
+          "sns_arn_l4":"${SNSTopicLargeFilePart}",
+          "sns_arn_l5":"${SNSTopicLargeFileRecomb}"
+        }
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sms${EnvironmentCode}azs3copy
+
+  # Create KMS key
+  KMSKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Azure Blob to Amazon S3 Copy KMS Key
+      PendingWindowInDays: 7
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: key-default-1
+        Statement:
+          - Sid: Enable IAM User Permissions
+            # https://docs.aws.amazon.com/kms/latest/developerguide/key-policy-overview.html
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action:
+              - kms:*
+            Resource:
+              - "*"
+          - Sid: Enable Cloudwatch access to KMS Key
+            # https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/encrypt-log-data-kms.html
+            Effect: Allow
+            Principal:
+              Service: !Sub logs.${AWS::Region}.amazonaws.com
+            Action:
+              - kms:Encrypt*
+              - kms:Decrypt*
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:Describe*
+            Resource:
+              - "*"
+            Condition:
+              ArnLike:
+                "kms:EncryptionContext:aws:logs:arn": !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: security
+        - Key: Name
+          Value: !Sub ${PrefixCode}kms${EnvironmentCode}azs3copy
+  KMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub alias/${PrefixCode}kms${EnvironmentCode}azs3copy
+      TargetKeyId: !Ref KMSKey
+
+  # Create S3 bucket to receive data
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete # Change as appropriate
+    Properties:
+      # BucketName: !Sub ${PrefixCode}sss${EnvironmentCode}azs3copy01-${AWS::AccountId}${AWS::Region}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref KMSKeyAlias
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: storage
+        - Key: Name
+          Value: !Sub ${PrefixCode}sss${EnvironmentCode}azs3copy
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: Allow HTTPS only
+            Effect: Deny
+            Principal: "*"
+            Action:
+              - s3:*
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}
+              - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+          - Sid: Allow TLS 1.2 and above
+            Effect: Deny
+            Principal: "*"
+            Action:
+              - s3:*
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}
+              - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}/*
+            Condition:
+              NumericLessThan:
+                s3:TlsVersion: 1.2
+
+  # Create IAM configuration used throughout stack
+  LambdaIAM:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Azure Blob to Amazon S3 Copy IAM role for Lambda Functions
+      RoleName: !Sub ${PrefixCode}iar${EnvironmentCode}azs3copylambda
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${PrefixCode}iap${EnvironmentCode}azs3copylambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:GetObjectAcl
+                  - s3:ListBucket
+                  - s3:ListBucketMultipartUploads
+                  - s3:ListMultipartUploadParts
+                  - s3:AbortMultipartUpload
+                  - s3:CreateBucket
+                  - s3:Put*
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}
+                  - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}/*
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey
+                Resource:
+                  - !GetAtt KMSKey.Arn
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetResourcePolicy
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                  - secretsmanager:ListSecretVersionIds
+                  - secretsmanager:UpdateSecret
+                Resource:
+                  - !Ref SecretsManagerSecret
+              - Effect: Allow
+                Action:
+                  - SNS:Publish
+                Resource:
+                  - !Ref SNSTopicL1L2
+                  - !Ref SNSTopicL2L3
+                  - !Ref SNSTopicLargeFileInit
+                  - !Ref SNSTopicLargeFilePart
+                  - !Ref SNSTopicLargeFileRecomb
+                  - !Ref SNSTopicDeadLetterQueue
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:CreateLogGroup
+                Resource:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: security
+        - Key: Name
+          Value: !Sub ${PrefixCode}iar${EnvironmentCode}azs3copylambda
+  EventBridgeIAM:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: IAM role for Azure Blob to Amazon S3 Copy EventBridge Schedule
+      RoleName: !Sub ${PrefixCode}iar${EnvironmentCode}azs3copyeventbrg
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${PrefixCode}iap${EnvironmentCode}azs3copyeventbrg
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - events:PutEvents
+                Resource:
+                  - !Sub arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:event-bus/*
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: security
+        - Key: Name
+          Value: !Sub ${PrefixCode}iar${EnvironmentCode}azs3copyeventbrg
+
+  ######################################################################################################
+  #                                         Blob Copy Stack                                            #
+  ######################################################################################################
+
+  # Create Lambda Functions
+  LambdaLayerVersionIdentity:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Description: Azure Blob to Amazon S3 CopyAzure identity layer
+      CompatibleRuntimes:
+        - python3.9
+      LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-identity
+      Content:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: azure-arm-identity.zip
+  LambdaLayerVersionStorage:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Description: Azure Blob to Amazon S3 CopyAzure storage layer
+      CompatibleRuntimes:
+        - python3.9
+      LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-storage
+      Content:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: azure-arm-storage.zip
+  LambdaFunction01:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Azure Blob to Amazon S3 Copy Lambda01 (blobcopy-launch-qualification)
+      Environment:
+        Variables:
+          bloburl: !Ref AzureBlobURL
+          secret: !Ref SecretsManagerSecret
+          partitionSize: !Ref PartitionSize
+          maxPartitionsPerFile: !Ref MaxPartitionsPerFile
+          UseFullFilePath: !Ref UseFullFilePath
+          resourcePrefix: !Ref PrefixCode
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda01
+      Handler: blobcopy-launch-qualification.lambda_handler
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: azs3copy-lambda01.zip
+      MemorySize: 128
+      ReservedConcurrentExecutions: 1
+      Role: !GetAtt LambdaIAM.Arn
+      Runtime: python3.9
+      Timeout: 90
+      TracingConfig:
+        Mode: Active
+      EphemeralStorage:
+        Size: 512
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopicDeadLetterQueue
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda01
+  LambdaFunction02:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Azure Blob to Amazon S3 Copy Lambda02 (blobcopy-find-blobs)
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda02
+      Handler: blobcopy-find-blobs.lambda_handler
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: azs3copy-lambda02.zip
+      MemorySize: 2560
+      ReservedConcurrentExecutions: 1
+      Role: !GetAtt LambdaIAM.Arn
+      Runtime: python3.9
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+      Layers:
+        - !Ref LambdaLayerVersionIdentity
+        - !Ref LambdaLayerVersionStorage
+      EphemeralStorage:
+        Size: 512
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopicDeadLetterQueue
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda02
+  LambdaFunction03:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Azure Blob to Amazon S3 Copy Lambda03 (blobcopy-download)
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda03
+      Handler: blobcopy-download.lambda_handler
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: azs3copy-lambda03.zip
+      MemorySize: 5120
+      Role: !GetAtt LambdaIAM.Arn
+      Runtime: python3.9
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+      Layers:
+        - !Ref LambdaLayerVersionIdentity
+        - !Ref LambdaLayerVersionStorage
+      EphemeralStorage:
+        Size: 5120
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopicDeadLetterQueue
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda03
+  LambdaFunction04:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Azure Blob to Amazon S3 Copy Lambda04 (blobcopy-largefile-initializer)
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda04
+      Handler: blobcopy-large-file-initiator.lambda_handler
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: azs3copy-lambda04.zip
+      MemorySize: 1024
+      Role: !GetAtt LambdaIAM.Arn
+      Runtime: python3.9
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+      EphemeralStorage:
+        Size: 512
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopicDeadLetterQueue
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda04
+  LambdaFunction05:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Azure Blob to Amazon S3 Copy Lambda05 (blobcopy-largefile-parter)
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda05
+      Handler: blobcopy-large-file-part.lambda_handler
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: azs3copy-lambda05.zip
+      MemorySize: 2056
+      Role: !GetAtt LambdaIAM.Arn
+      Runtime: python3.9
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+      Layers:
+        - !Ref LambdaLayerVersionIdentity
+        - !Ref LambdaLayerVersionStorage
+      EphemeralStorage:
+        Size: 512
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopicDeadLetterQueue
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda05
+  LambdaFunction06:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Azure Blob to Amazon S3 Copy Lambda06 (blobcopy-largefile-recombinater)
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda06
+      Handler: blobcopy-large-file-recombinator.lambda_handler
+      KmsKeyArn: !GetAtt KMSKey.Arn
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Sub ${SourceBucket}
+        S3Key: azs3copy-lambda06.zip
+      MemorySize: 1024
+      Role: !GetAtt LambdaIAM.Arn
+      Runtime: python3.9
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+      EphemeralStorage:
+        Size: 512
+      DeadLetterConfig:
+        TargetArn: !Ref SNSTopicDeadLetterQueue
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda06
+
+  # Create SNS queues
+  SNSTopicL1L2:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ""
+      TopicName: !Sub ${PrefixCode}sns${EnvironmentCode}azs3copyL1_to_L2
+      KmsMasterKeyId: alias/aws/sns
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sns${EnvironmentCode}azs3copyL1_to_L2
+  SNSTopicL2L3:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ""
+      KmsMasterKeyId: alias/aws/sns
+      TopicName: !Sub ${PrefixCode}sns${EnvironmentCode}azs3copyL2_to_L3
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sns${EnvironmentCode}azs3copyL2_to_L3
+  SNSTopicLargeFileInit:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ""
+      KmsMasterKeyId: alias/aws/sns
+      TopicName: !Sub ${PrefixCode}sns${EnvironmentCode}azs3copyLargeFileInit
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sns${EnvironmentCode}azs3copyLargeFileInit
+  SNSTopicLargeFilePart:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ""
+      KmsMasterKeyId: alias/aws/sns
+      TopicName: !Sub ${PrefixCode}sns${EnvironmentCode}azs3copyLargeFilePart
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sns${EnvironmentCode}azs3copyLargeFilePart
+  SNSTopicLargeFileRecomb:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ""
+      KmsMasterKeyId: alias/aws/sns
+      TopicName: !Sub ${PrefixCode}sns${EnvironmentCode}azs3copyLargeFileRecomb
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sns${EnvironmentCode}azs3copyLargeFileRecomb
+  SNSTopicDeadLetterQueue:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ""
+      KmsMasterKeyId: alias/aws/sns
+      TopicName: !Sub ${PrefixCode}sns${EnvironmentCode}azs3copyDLQ
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: azs3copy
+        - Key: Rtype
+          Value: code
+        - Key: Name
+          Value: !Sub ${PrefixCode}sns${EnvironmentCode}azs3copyDLQ
+  SNSSubscriptionL1L2:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SNSTopicL1L2
+      Endpoint: !GetAtt LambdaFunction02.Arn
+      Protocol: lambda
+      Region: !Ref AWS::Region
+  SNSSubscriptionL2L3:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SNSTopicL2L3
+      Endpoint: !GetAtt LambdaFunction03.Arn
+      Protocol: lambda
+      Region: !Ref AWS::Region
+  SNSSubscriptionLargeFileInit:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SNSTopicLargeFileInit
+      Endpoint: !GetAtt LambdaFunction04.Arn
+      Protocol: lambda
+      Region: !Ref AWS::Region
+  SNSSubscriptionLargeFilePart:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SNSTopicLargeFilePart
+      Endpoint: !GetAtt LambdaFunction05.Arn
+      Protocol: lambda
+      Region: !Ref AWS::Region
+  SNSSubscriptionLargeFileRecomb:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SNSTopicLargeFileRecomb
+      Endpoint: !GetAtt LambdaFunction06.Arn
+      Protocol: lambda
+      Region: !Ref AWS::Region
+  LambdaPermissionL1L2:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction02.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopicL1L2
+  LambdaPermissionL2L3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction03.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopicL2L3
+  LambdaPermissionLargeFileInit:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction04.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopicLargeFileInit
+  LambdaPermissionLargeFilePart:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction05.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopicLargeFilePart
+  LambdaPermissionLargeFileRecomb:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt LambdaFunction06.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref SNSTopicLargeFileRecomb
+
+  # Create EventBridge schedule
+  ScheduledRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Azure Blob to Amazon S3 Copy Scheduled pull from Azure blob storage
+      Name: !Sub ${PrefixCode}evr${EnvironmentCode}azs3copy
+      RoleArn: !GetAtt EventBridgeIAM.Arn
+      ScheduleExpression: !Sub ${AzureCopySchedule}
+      State: "ENABLED"
+      Targets:
+        - Arn: !GetAtt LambdaFunction01.Arn
+          Id: InvokeLaunchQualification
+  LambdaPermissionScheduledRule:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaFunction01
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt ScheduledRule.Arn
+
+  # Cloudwatch Dashboard
+  CloudwatchDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub ${PrefixCode}cwd${EnvironmentCode}azs3copy
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 0,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${LambdaFunction01}", { "id": "m1" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${LambdaFunction02}", { "id": "m2" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${LambdaFunction03}", { "id": "m3" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${LambdaFunction04}", { "id": "m4" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${LambdaFunction05}", { "id": "m5" } ],
+                  [ "AWS/Lambda", "Invocations", "FunctionName", "${LambdaFunction06}", { "id": "m6" } ]
+                ],
+                "legend": {
+                    "position": "bottom"
+                },
+                "period": 300,
+                "view": "singleValue",
+                "stacked": true,
+                "title": "Lambda Invocations",
+                "stat": "Sum",
+                "liveData": true,
+                "sparkline": true,
+                "trend": true,
+                "setPeriodToTimeRange": true,
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 1,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${LambdaFunction01}", { "id": "m7" } ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${LambdaFunction02}", { "id": "m8" } ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${LambdaFunction03}", { "id": "m9" } ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${LambdaFunction04}", { "id": "m10" } ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${LambdaFunction05}", { "id": "m11" } ],
+                  [ "AWS/Lambda", "Errors", "FunctionName", "${LambdaFunction06}", { "id": "m12" } ]
+                ],
+                "legend": {
+                    "position": "bottom"
+                },
+                "period": 300,
+                "view": "singleValue",
+                "stacked": false,
+                "title": "Lambda Errors",
+                "stat": "Sum",
+                "liveData": true,
+                "sparkline": true,
+                "trend": true,
+                "setPeriodToTimeRange": true,
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 2,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction01}", { "id": "m13" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction02}", { "id": "m14" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction03}", { "id": "m15" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction04}", { "id": "m16" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction05}", { "id": "m17" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction06}", { "id": "m18" } ]
+                ],
+                "legend": {
+                    "position": "bottom"
+                },
+                "period": 300,
+                "view": "singleValue",
+                "stacked": true,
+                "title": "Lambda Duration",
+                "stat": "p90",
+                "liveData": true,
+                "sparkline": true,
+                "trend": true,
+                "setPeriodToTimeRange": true,
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "width": 24,
+              "height": 6,
+              "x": 0,
+              "y": 3,
+              "properties": {
+                "metrics": [
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction01}", { "id": "m19" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction02}", { "id": "m20" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction03}", { "id": "m21" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction04}", { "id": "m22" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction05}", { "id": "m23" } ],
+                  [ "AWS/Lambda", "Duration", "FunctionName", "${LambdaFunction06}", { "id": "m24" } ]
+                ],
+                "legend": {
+                    "position": "bottom"
+                },
+                "period": 86400,
+                "view": "timeSeries",
+                "stacked": true,
+                "title": "Lambda Duration Graph",
+                "stat": "p90",
+                "liveData": false,
+                "trend": true,
+                "setPeriodToTimeRange": true,
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "width": 4,
+              "height": 6,
+              "x": 0,
+              "y": 4,
+              "properties": {
+                "metrics": [
+                  [ "AWS/SNS", "NumberOfNotificationsFailed", "TopicName", "${SNSTopicL1L2.TopicName}", { "stat": "Sum", "id": "m10" } ],
+                  [ "AWS/SNS", "NumberOfNotificationsFailed", "TopicName", "${SNSTopicL2L3.TopicName}", { "stat": "Sum", "id": "m10" } ],
+                  [ "AWS/SNS", "NumberOfNotificationsFailed", "TopicName", "${SNSTopicLargeFileInit.TopicName}", { "stat": "Sum", "id": "m10" } ],
+                  [ "AWS/SNS", "NumberOfNotificationsFailed", "TopicName", "${SNSTopicLargeFilePart.TopicName}", { "stat": "Sum", "id": "m10" } ],
+                  [ "AWS/SNS", "NumberOfNotificationsFailed", "TopicName", "${SNSTopicLargeFileRecomb.TopicName}", { "stat": "Sum", "id": "m10" } ]
+                ],
+                "legend": {
+                    "position": "bottom"
+                },
+                "period": 300,
+                "view": "singleValue",
+                "stacked": true,
+                "title": "SNS Errors",
+                "stat": "p90",
+                "liveData": true,
+                "sparkline": true,
+                "trend": true,
+                "setPeriodToTimeRange": true,
+                "region": "${AWS::Region}"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 6,
+              "y": 4,
+              "width": 20,
+              "height": 6,
+              "properties": {
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                  [ "AWS/S3", "BucketSizeBytes", "StorageType", "StandardStorage", "BucketName", "${S3Bucket}", { "period": 86400 }]
+                ],
+                "setPeriodToTimeRange": false,
+                "start": "-PT168H",
+                "end": "PT0H",
+                "region": "${AWS::Region}",
+                "title": "S3 Storage",
+                "yAxis": {
+                  "left": {
+                    "label": "Size(GB)"
+                  }
+                }
+              }
+            },
+            {
+              "type": "log",
+              "width": 24,
+              "height": 9,
+              "x": 0,
+              "y": 5,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction01}' | SOURCE '/aws/lambda/${LambdaFunction02}' | SOURCE '/aws/lambda/${LambdaFunction03}' | SOURCE '/aws/lambda/${LambdaFunction04}' | SOURCE '/aws/lambda/${LambdaFunction05}' | SOURCE '/aws/lambda/${LambdaFunction06}' | fields @timestamp, @log, @message | sort @timestamp desc | limit 300",
+                "region": "${AWS::Region}",
+                "title": "Lambda Trace",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 6,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction01}' | fields @timestamp, @log, @message | filter @message LIKE /ERROR/ or @message LIKE /Task timed out/ | sort @timestamp desc | limit 10",
+                "region": "${AWS::Region}",
+                "title": "Lambda01 Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 7,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction02}' | fields @timestamp, @log, @message | filter @message LIKE /ERROR/ or @message LIKE /Task timed out/ | sort @timestamp desc | limit 10",
+                "region": "${AWS::Region}",
+                "title": "Lambda02 Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 8,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction03}' | fields @timestamp, @log, @message | filter @message LIKE /ERROR/ or @message LIKE /Task timed out/ | sort @timestamp desc | limit 10",
+                "region": "${AWS::Region}",
+                "title": "Lambda03 Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 9,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction04}' | fields @timestamp, @log, @message | filter @message LIKE /ERROR/ or @message LIKE /Task timed out/ | sort @timestamp desc | limit 10",
+                "region": "${AWS::Region}",
+                "title": "Lambda04 Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 10,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction05}' | fields @timestamp, @log, @message | filter @message LIKE /ERROR/ or @message LIKE /Task timed out/ | sort @timestamp desc | limit 10",
+                "region": "${AWS::Region}",
+                "title": "Lambda05 Errors",
+                "view": "table"
+              }
+            },
+            {
+              "type": "log",
+              "width": 24,
+              "height": 3,
+              "x": 0,
+              "y": 11,
+              "properties": {
+                "query": "SOURCE '/aws/lambda/${LambdaFunction06}' | fields @timestamp, @log, @message | filter @message LIKE /ERROR/ or @message LIKE /Task timed out/ | sort @timestamp desc | limit 10",
+                "region": "${AWS::Region}",
+                "title": "Lambda06 Errors",
+                "view": "table"
+              }
+            }
+          ]
+        }

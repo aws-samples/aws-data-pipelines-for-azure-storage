@@ -1196,7 +1196,7 @@ Resources:
   LambdaFunction04:
     Type: AWS::Lambda::Function
     Properties:
-      Description: AWS Cloud Intelligence Dashboard Lambda02 (blobcopy-largefile-initializer)
+      Description: AWS Cloud Intelligence Dashboard Lambda04 (blobcopy-largefile-initializer)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda04
       Handler: blobcopy-large-file-initiator.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
@@ -1231,7 +1231,7 @@ Resources:
   LambdaFunction05:
     Type: AWS::Lambda::Function
     Properties:
-      Description: AWS Cloud Intelligence Dashboard Lambda02 (blobcopy-largefile-parter)
+      Description: AWS Cloud Intelligence Dashboard Lambda05 (blobcopy-largefile-parter)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda05
       Handler: blobcopy-large-file-part.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
@@ -1269,7 +1269,7 @@ Resources:
   LambdaFunction06:
     Type: AWS::Lambda::Function
     Properties:
-      Description: AWS Cloud Intelligence Dashboard Lambda02 (blobcopy-largefile-recombinater)
+      Description: AWS Cloud Intelligence Dashboard Lambda06 (blobcopy-largefile-recombinater)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda06
       Handler: blobcopy-large-file-recombinator.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
