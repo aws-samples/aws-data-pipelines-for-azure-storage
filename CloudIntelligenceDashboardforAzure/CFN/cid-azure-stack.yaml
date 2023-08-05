@@ -1085,7 +1085,7 @@ Resources:
           UseFullFilePath: !Ref UseFullFilePath
           resourcePrefix: !Ref PrefixCode
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda01
-      Handler: cid-azure-blobcopy-launch-qualification.lambda_handler
+      Handler: blobcopy-launch-qualification.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
       Architectures:
         - arm64
@@ -1121,7 +1121,7 @@ Resources:
     Properties:
       Description: AWS Cloud Intelligence Dashboard Lambda02 (blobcopy-find-blobs)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda02
-      Handler: cid-azure-blobcopy-find-blobs.lambda_handler
+      Handler: blobcopy-find-blobs.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
       Architectures:
         - arm64
@@ -1160,7 +1160,7 @@ Resources:
     Properties:
       Description: AWS Cloud Intelligence Dashboard Lambda03 (blobcopy-download)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda03
-      Handler: cid-azure-blobcopy-download.lambda_handler
+      Handler: blobcopy-download.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
       Architectures:
         - arm64
@@ -1198,7 +1198,7 @@ Resources:
     Properties:
       Description: AWS Cloud Intelligence Dashboard Lambda02 (blobcopy-largefile-initializer)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda04
-      Handler: cid-azure-blobcopy-large-file-initiator.lambda_handler
+      Handler: blobcopy-large-file-initiator.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
       Architectures:
         - arm64
@@ -1233,7 +1233,7 @@ Resources:
     Properties:
       Description: AWS Cloud Intelligence Dashboard Lambda02 (blobcopy-largefile-parter)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda05
-      Handler: cid-azure-blobcopy-large-file-part.lambda_handler
+      Handler: blobcopy-large-file-part.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
       Architectures:
         - arm64
@@ -1271,7 +1271,7 @@ Resources:
     Properties:
       Description: AWS Cloud Intelligence Dashboard Lambda02 (blobcopy-largefile-recombinater)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda06
-      Handler: cid-azure-blobcopy-large-file-recombinator.lambda_handler
+      Handler: blobcopy-large-file-recombinator.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
       Architectures:
         - arm64
