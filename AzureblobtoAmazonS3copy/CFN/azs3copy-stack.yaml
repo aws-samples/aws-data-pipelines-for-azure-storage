@@ -41,10 +41,10 @@ Parameters:
   PrefixCode:
     Description: Prefix used to name all resources created by this CloudFormation template. Cannot be 'aws'. e.g. department name, business unit, project name
     Type: String
-    Default: azs3
+    Default: etl
   EnvironmentCode:
     Type: String
-    Default: pd
+    Default: dv
     Description: Code used to name all resources created by this CloudFormation template e.g. 'pd' for production
   OwnerTag:
     Type: String
@@ -52,7 +52,7 @@ Parameters:
     Description: Owner tag value. All resources are created with an 'Owner' tag and the value you set here. e.g. finops, devops, IT shared services, etc.
   EnvironmentTag:
     Type: String
-    Default: production
+    Default: Development
     Description: Environment tag value. All resources are created with an 'Environment' tag and the value you set here. e.g. production, staging, development
 
   # Microsoft Azure Parameters
@@ -93,7 +93,7 @@ Parameters:
     Default: "100"
     Type: String
   UseFullFilePath:
-    Description: Retain Azure storage path.
+    Description: Retain Azure storage path
     AllowedValues:
       - true
       - false
@@ -152,6 +152,7 @@ Resources:
       KmsKeyId: !GetAtt KMSKey.Arn
       SecretString: !Sub |
         {
+          "bloburl":"${AzureBlobURL}",
           "tenantid":"${AzureTenantID}",
           "appid":"${AzureApplicationID}",
           "appsecret":"${AzureSecretKey}",
@@ -440,7 +441,6 @@ Resources:
       Description: Azure Blob to Amazon S3 Copy Lambda01 (blobcopy-launch-qualification)
       Environment:
         Variables:
-          bloburl: !Ref AzureBlobURL
           secret: !Ref SecretsManagerSecret
           partitionSize: !Ref PartitionSize
           maxPartitionsPerFile: !Ref MaxPartitionsPerFile

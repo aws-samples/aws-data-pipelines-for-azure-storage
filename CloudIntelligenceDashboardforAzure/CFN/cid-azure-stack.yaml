@@ -46,7 +46,7 @@ Parameters:
   PrefixCode:
     Description: Prefix used to name all resources created by this CloudFormation template. Cannot be 'aws'. e.g. department name, business unit, project name
     Type: String
-    Default: cid
+    Default: fin
   EnvironmentCode:
     Type: String
     Default: pd
@@ -127,7 +127,7 @@ Parameters:
     Default: "100"
     Type: String
   UseFullFilePath:
-    Description: Retain Azure storage path.
+    Description: Retain Azure storage path
     AllowedValues:
       - true
       - false
@@ -186,6 +186,7 @@ Resources:
       KmsKeyId: !GetAtt KMSKey.Arn
       SecretString: !Sub |
         {
+          "bloburl":"${AzureBlobURL}",
           "tenantid":"${AzureTenantID}",
           "appid":"${AzureApplicationID}",
           "appsecret":"${AzureSecretKey}",
@@ -208,7 +209,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: security
         - Key: Name
           Value: !Sub ${PrefixCode}sms${EnvironmentCode}cidazure
 
@@ -332,7 +333,7 @@ Resources:
   GlueIAM:
     Type: AWS::IAM::Role
     Properties:
-      Description: AWS Cloud Intelligence Dashboard for Azure IAM role for Glue crawlers and Glue job
+      Description: AWS Cloud Intelligence Dashboard for Azure IAM role for Glue
       RoleName: !Sub ${PrefixCode}iar${EnvironmentCode}cidazureglue
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -411,7 +412,7 @@ Resources:
   LambdaIAM:
     Type: AWS::IAM::Role
     Properties:
-      Description: AWS Cloud Intelligence Dashboard for Azure IAM role for Lambda Functions
+      Description: AWS Cloud Intelligence Dashboard for Azure IAM role for Lambda
       RoleName: !Sub ${PrefixCode}iar${EnvironmentCode}cidazurelambda
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -1078,7 +1079,6 @@ Resources:
       Description: AWS Cloud Intelligence Dashboard Lambda01 (blobcopy-launch-qualification)
       Environment:
         Variables:
-          bloburl: !Ref AzureBlobURL
           secret: !Ref SecretsManagerSecret
           partitionSize: !Ref PartitionSize
           maxPartitionsPerFile: !Ref MaxPartitionsPerFile
@@ -1113,7 +1113,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda01
   LambdaFunction02:
@@ -1152,7 +1152,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda02
   LambdaFunction03:
@@ -1190,7 +1190,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda03
   LambdaFunction04:
@@ -1225,7 +1225,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda04
   LambdaFunction05:
@@ -1263,7 +1263,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda05
   LambdaFunction06:
@@ -1298,7 +1298,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda06
 
@@ -1319,7 +1319,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureL1_to_L2
   SNSTopicL2L3:
@@ -1338,7 +1338,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureL2_to_L3
   SNSTopicLargeFileInit:
@@ -1357,7 +1357,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFileInit
   SNSTopicLargeFilePart:
@@ -1376,7 +1376,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFilePart
   SNSTopicLargeFileRecomb:
@@ -1395,7 +1395,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFileRecomb
   SNSTopicDeadLetterQueue:
@@ -1414,7 +1414,7 @@ Resources:
         - Key: Solution
           Value: AWSCIDforAzure
         - Key: Rtype
-          Value: code
+          Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureDLQ
   SNSSubscriptionL1L2:
