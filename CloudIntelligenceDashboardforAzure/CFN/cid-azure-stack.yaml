@@ -1,13 +1,14 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: This CloudFormation Template deploys the AWS Cloud Intelligence Dashboard for Azure
 
-# Cloudformation Stack details menu
+### Cloudformation Stack details menu
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
           default: Common Settings
         Parameters:
+          - DeploymentType
           - SourceBucket
           - PrefixCode
           - EnvironmentCode
@@ -37,109 +38,117 @@ Metadata:
           - MaxPartitionsPerFile
           - UseFullFilePath
 
-# Common Parameters
+### Common Parameters
 Parameters:
+  DeploymentType:
+    Type: String
+    Description: Choose 'automatic' for Azure data retrieval or 'manual' for one-time billing analysis.
+    Default: "automatic"
+    AllowedValues:
+      - "automatic"
+      - "manual"
   SourceBucket:
+    Type: String
     Description: The new S3 bucket created which contains AWS Cloud Intelligence Dashboard for Azure installation/source files
     Default: bucketname
-    Type: String
   PrefixCode:
-    Description: Prefix used to name all resources created by this CloudFormation template. Cannot be 'aws'. e.g. department name, business unit, project name
     Type: String
+    Description: Prefix used to name all resources created by this CloudFormation template. Cannot be 'aws'. e.g. department name, business unit, project name
     Default: fin
   EnvironmentCode:
     Type: String
-    Default: pd
     Description: Code used to name all resources created by this CloudFormation template e.g. 'pd' for production
+    Default: pd
   OwnerTag:
     Type: String
-    Default: Amazon Web Services
     Description: Owner tag value. All resources are created with an 'Owner' tag and the value you set here. e.g. finops, devops, IT shared services, etc.
+    Default: Amazon Web Services
   EnvironmentTag:
     Type: String
-    Default: production
     Description: Environment tag value. All resources are created with an 'Environment' tag and the value you set here. e.g. production, staging, development
+    Default: production
 
-  # Microsoft Azure Parameters
+  ### Microsoft Azure Parameters
   AccountType:
+    Type: String
     Description: Microsoft Azure account type. Choose carefully, selecting the incorrect account type will cause errors
     Default: MCA
-    Type: String
     AllowedValues:
       - MCA
       - EA
       - PTAX
   AzureBlobURL:
+    Type: String
     Description: Microsoft Azure Primary Blob endpoint URL
     Default: https://<mystorageaccount>.blob.core.windows.net/
-    Type: String
   AzureApplicationID:
+    Type: String
     Description: Microsoft Azure Application ID
     Default: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    Type: String
   AzureTenantID:
+    Type: String
     Description: Microsoft Azure Tenant ID
     Default: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    Type: String
   AzureSecretKey:
+    Type: String
     Description: Microsoft Azure Client Secret
     Default: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    Type: String
   AzureDateFormat:
+    Type: String
     Description: Format of date in Azure cost export, check the date column of your Azure csv export to verify.
     Default: "MM/dd/yyyy"
-    Type: String
     AllowedValues:
       - MM/dd/yyyy
       - dd/MM/yyyy
       - yyyy-MM-dd
   AzureFolderPath:
+    Type: String
     Description: Path to Azure cost export folders, used by AWS Glue job. The default value is setup for <azure storage account>/<azure storage container>/directory/*
     Default: directory/*
-    Type: String
   AzureTags:
-    Description: List of Azure tags names you would like to bring across to QuickSight. WARNING leave a space after each comma. You will need at least one value, make one up if you don't have anything
-
-    Default: "Environment, CostCenter, System, Department"
     Type: String
+    Description: List of Azure tags names you would like to bring across to QuickSight. WARNING leave a space after each comma. You will need at least one value, make one up if you don't have anything
+    Default: "Environment, CostCenter, System, Department"
 
   # Data Copy Parameters
   AzureCopySchedule:
-    Description: Scheduled time (UTC) for Azure data pull. Must be a CRON expression. The default sets the schedule to 3am daily
     Type: String
+    Description: Scheduled time (UTC) for Azure data pull. Must be a CRON expression. The default sets the schedule to 3am daily
     Default: "cron(0 3 * * ? *)"
   GlueCopySchedule:
-    Description: Scheduled time (UTC) for Glue data processing. Must be a CRON expression. The default sets the schedule to 4am daily. Must be after Azure data pull above
     Type: String
+    Description: Scheduled time (UTC) for Glue data processing. Must be a CRON expression. The default sets the schedule to 4am daily. Must be after Azure data pull above
     Default: "cron(0 4 * * ? *)"
   BlobToS3SyncStartDate:
-    Description: Minimum age of the objects to be copied. Must be a valid format (YYYYMMDD)
     Type: String
+    Description: Minimum age of the objects to be copied. Must be a valid format (YYYYMMDD)
     Default: "20220820"
 
-  # Advanced Parameters
+  ### Advanced Parameters
   PartitionSize:
     Description: Multipart upload partition size in bytes
     Default: "104857600"
     Type: String
   MaxPartitionsPerFile:
+    Type: String
     Description: The maximum amount of partitions to create for each multi part file. Must be an integer between 5 and 10000
     Default: "100"
-    Type: String
   UseFullFilePath:
+    Type: String
     Description: Retain Azure storage path
+    Default: "true"
     AllowedValues:
       - true
       - false
-    Default: "true"
-    Type: String
+Conditions:
+  Deploy: !Equals [!Ref DeploymentType, "automatic"]
 
 Resources:
   ######################################################################################################
   #                                         Infrastructure Stack                                       #
   ######################################################################################################
 
-  # Create a Resource Group for CloudFormation deployed resources
+  ### Create a Resource Group for CloudFormation deployed resources
   ResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
@@ -177,7 +186,7 @@ Resources:
         - Key: Name
           Value: !Sub ${PrefixCode}rgg${EnvironmentCode}cidazure
 
-  # Create Secrets Manager secret
+  ### Create Secrets Manager secret
   SecretsManagerSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -212,8 +221,9 @@ Resources:
           Value: security
         - Key: Name
           Value: !Sub ${PrefixCode}sms${EnvironmentCode}cidazure
+    Condition: Deploy
 
-  # Create KMS key
+  ### Create KMS key
   KMSKey:
     Type: AWS::KMS::Key
     Properties:
@@ -268,7 +278,7 @@ Resources:
       AliasName: !Sub alias/${PrefixCode}kms${EnvironmentCode}cidazure
       TargetKeyId: !Ref KMSKey
 
-  # Create S3 bucket to receive Azure Billing data
+  ### Create S3 bucket to receive Azure Billing data
   S3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete # Change as appropriate
@@ -329,7 +339,7 @@ Resources:
               NumericLessThan:
                 s3:TlsVersion: 1.2
 
-  # Create IAM configuration used throughout stack
+  ### Create IAM configuration used throughout stack
   GlueIAM:
     Type: AWS::IAM::Role
     Properties:
@@ -486,6 +496,7 @@ Resources:
           Value: security
         - Key: Name
           Value: !Sub ${PrefixCode}iar${EnvironmentCode}cidazurelambda
+    Condition: Deploy
   EventBridgeIAM:
     Type: AWS::IAM::Role
     Properties:
@@ -522,6 +533,7 @@ Resources:
           Value: security
         - Key: Name
           Value: !Sub ${PrefixCode}iar${EnvironmentCode}cidazureeventbrg
+    Condition: Deploy
   QuickSightPolicy:
     Type: "AWS::IAM::Policy"
     Properties:
@@ -554,7 +566,7 @@ Resources:
         - aws-quicksight-service-role-v0
   # TODO: Replace with QuickSight role-based access control to data sources that connect to Amazon S3 and Athena
 
-  # Create Glue Resources [No Glue Registry or Glue Schema in this CFN Template]
+  ### Create Glue Resources [No Glue Registry or Glue Schema in this CFN Template]
   GlueDatabase:
     Type: AWS::Glue::Database
     Properties:
@@ -719,7 +731,6 @@ Resources:
               Type: string
             - Name: ProductName
               Type: string
-
   GlueJob:
     Type: AWS::Glue::Job
     Properties:
@@ -782,8 +793,8 @@ Resources:
         Solution: AWSCIDforAzure
         Rtype: data
         Name: !Sub ${PrefixCode}glt${EnvironmentCode}cidazure
-
-  # Create System Manager Parameters used by Glue script
+    Condition: Deploy
+  ### Create System Manager Parameters used by Glue script
   SMParameterVarRawPath:
     Type: AWS::SSM::Parameter
     Properties:
@@ -994,7 +1005,7 @@ Resources:
         Solution: AWSCIDforAzure
         Rtype: parameter
         Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_error_folder
-  # Create SSM Parameter to supply dashboard installation command
+  ### Create SSM Parameter to supply dashboard installation command
   SMParameterDashboardDeploy:
     Type: AWS::SSM::Parameter
     Properties:
@@ -1009,7 +1020,7 @@ Resources:
         Solution: AWSCIDforAzure
         Rtype: parameter
         Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_azuretags
-  # Create Athena resources
+  ### Create Athena resources
   AthenaWorkgroup:
     Type: AWS::Athena::WorkGroup
     Properties:
@@ -1038,7 +1049,7 @@ Resources:
         - Key: Name
           Value: !Sub ${PrefixCode}atw${EnvironmentCode}cidazure
 
-  # Generate Athena saved query. named query is for reference only and not used as part of automation
+  ### Generate Athena saved query. named query is for reference only and not used as part of automation
   AthenaQuery:
     Type: AWS::Athena::NamedQuery
     Properties:
@@ -1052,7 +1063,7 @@ Resources:
   #                                         Blob Copy Stack                                            #
   ######################################################################################################
 
-  # Create Lambda Functions
+  ### Create Lambda Functions
   LambdaLayerVersionIdentity:
     Type: AWS::Lambda::LayerVersion
     Properties:
@@ -1063,6 +1074,7 @@ Resources:
       Content:
         S3Bucket: !Sub ${SourceBucket}
         S3Key: azure-arm-identity.zip
+    Condition: Deploy
   LambdaLayerVersionStorage:
     Type: AWS::Lambda::LayerVersion
     Properties:
@@ -1073,6 +1085,7 @@ Resources:
       Content:
         S3Bucket: !Sub ${SourceBucket}
         S3Key: azure-arm-storage.zip
+    Condition: Deploy
   LambdaFunction01:
     Type: AWS::Lambda::Function
     Properties:
@@ -1116,6 +1129,7 @@ Resources:
           Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda01
+    Condition: Deploy
   LambdaFunction02:
     Type: AWS::Lambda::Function
     Properties:
@@ -1155,6 +1169,7 @@ Resources:
           Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda02
+    Condition: Deploy
   LambdaFunction03:
     Type: AWS::Lambda::Function
     Properties:
@@ -1193,6 +1208,7 @@ Resources:
           Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda03
+    Condition: Deploy
   LambdaFunction04:
     Type: AWS::Lambda::Function
     Properties:
@@ -1228,6 +1244,7 @@ Resources:
           Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda04
+    Condition: Deploy
   LambdaFunction05:
     Type: AWS::Lambda::Function
     Properties:
@@ -1266,6 +1283,7 @@ Resources:
           Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda05
+    Condition: Deploy
   LambdaFunction06:
     Type: AWS::Lambda::Function
     Properties:
@@ -1301,8 +1319,9 @@ Resources:
           Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda06
+    Condition: Deploy
 
-  # Create SNS queues
+  ### Create SNS queues
   SNSTopicL1L2:
     Type: AWS::SNS::Topic
     Properties:
@@ -1322,6 +1341,7 @@ Resources:
           Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureL1_to_L2
+    Condition: Deploy
   SNSTopicL2L3:
     Type: AWS::SNS::Topic
     Properties:
@@ -1341,6 +1361,7 @@ Resources:
           Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureL2_to_L3
+    Condition: Deploy
   SNSTopicLargeFileInit:
     Type: AWS::SNS::Topic
     Properties:
@@ -1360,6 +1381,7 @@ Resources:
           Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFileInit
+    Condition: Deploy
   SNSTopicLargeFilePart:
     Type: AWS::SNS::Topic
     Properties:
@@ -1379,6 +1401,7 @@ Resources:
           Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFilePart
+    Condition: Deploy
   SNSTopicLargeFileRecomb:
     Type: AWS::SNS::Topic
     Properties:
@@ -1398,6 +1421,7 @@ Resources:
           Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFileRecomb
+    Condition: Deploy
   SNSTopicDeadLetterQueue:
     Type: AWS::SNS::Topic
     Properties:
@@ -1417,6 +1441,7 @@ Resources:
           Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureDLQ
+    Condition: Deploy
   SNSSubscriptionL1L2:
     Type: AWS::SNS::Subscription
     Properties:
@@ -1424,6 +1449,7 @@ Resources:
       Endpoint: !GetAtt LambdaFunction02.Arn
       Protocol: lambda
       Region: !Ref AWS::Region
+    Condition: Deploy
   SNSSubscriptionL2L3:
     Type: AWS::SNS::Subscription
     Properties:
@@ -1431,6 +1457,7 @@ Resources:
       Endpoint: !GetAtt LambdaFunction03.Arn
       Protocol: lambda
       Region: !Ref AWS::Region
+    Condition: Deploy
   SNSSubscriptionLargeFileInit:
     Type: AWS::SNS::Subscription
     Properties:
@@ -1438,6 +1465,7 @@ Resources:
       Endpoint: !GetAtt LambdaFunction04.Arn
       Protocol: lambda
       Region: !Ref AWS::Region
+    Condition: Deploy
   SNSSubscriptionLargeFilePart:
     Type: AWS::SNS::Subscription
     Properties:
@@ -1445,6 +1473,7 @@ Resources:
       Endpoint: !GetAtt LambdaFunction05.Arn
       Protocol: lambda
       Region: !Ref AWS::Region
+    Condition: Deploy
   SNSSubscriptionLargeFileRecomb:
     Type: AWS::SNS::Subscription
     Properties:
@@ -1452,6 +1481,7 @@ Resources:
       Endpoint: !GetAtt LambdaFunction06.Arn
       Protocol: lambda
       Region: !Ref AWS::Region
+    Condition: Deploy
   LambdaPermissionL1L2:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1459,6 +1489,7 @@ Resources:
       FunctionName: !GetAtt LambdaFunction02.Arn
       Principal: sns.amazonaws.com
       SourceArn: !Ref SNSTopicL1L2
+    Condition: Deploy
   LambdaPermissionL2L3:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1466,6 +1497,7 @@ Resources:
       FunctionName: !GetAtt LambdaFunction03.Arn
       Principal: sns.amazonaws.com
       SourceArn: !Ref SNSTopicL2L3
+    Condition: Deploy
   LambdaPermissionLargeFileInit:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1473,6 +1505,7 @@ Resources:
       FunctionName: !GetAtt LambdaFunction04.Arn
       Principal: sns.amazonaws.com
       SourceArn: !Ref SNSTopicLargeFileInit
+    Condition: Deploy
   LambdaPermissionLargeFilePart:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1480,6 +1513,7 @@ Resources:
       FunctionName: !GetAtt LambdaFunction05.Arn
       Principal: sns.amazonaws.com
       SourceArn: !Ref SNSTopicLargeFilePart
+    Condition: Deploy
   LambdaPermissionLargeFileRecomb:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1487,8 +1521,9 @@ Resources:
       FunctionName: !GetAtt LambdaFunction06.Arn
       Principal: sns.amazonaws.com
       SourceArn: !Ref SNSTopicLargeFileRecomb
+    Condition: Deploy
 
-  # Create EventBridge schedule
+  ### Create EventBridge schedule
   ScheduledRule:
     Type: AWS::Events::Rule
     Properties:
@@ -1500,6 +1535,7 @@ Resources:
       Targets:
         - Arn: !GetAtt LambdaFunction01.Arn
           Id: InvokeLaunchQualification
+    Condition: Deploy
   LambdaPermissionScheduledRule:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1507,8 +1543,9 @@ Resources:
       Action: "lambda:InvokeFunction"
       Principal: "events.amazonaws.com"
       SourceArn: !GetAtt ScheduledRule.Arn
+    Condition: Deploy
 
-  # Cloudwatch Dashboard
+  ### Cloudwatch Dashboard
   CloudwatchDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
@@ -1781,3 +1818,4 @@ Resources:
             }
           ]
         }
+    Condition: Deploy
