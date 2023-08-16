@@ -107,7 +107,7 @@ Parameters:
     Default: directory/*
   AzureTags:
     Type: String
-    Description: List of Azure tags names you would like to bring across to QuickSight. WARNING leave a space after each comma. You will need at least one value, make one up if you don't have anything
+    Description: List of Azure tags names you would like to bring across to QuickSight. WARNING leave a space after each comma. You will need at least one value, make one up if you don't have anything. Case sensitive.
     Default: "Environment, CostCenter, System, Department"
 
   # Data Copy Parameters
@@ -602,135 +602,6 @@ Resources:
               name: my-stream
               serialization.format: "1"
             SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
-          Columns:
-            - Name: AccountName
-              Type: string
-            - Name: AccountOwnerId
-              Type: string
-            - Name: AvailabilityZone
-              Type: string
-            - Name: benefitId
-              Type: string
-            - Name: billingAccountId
-              Type: string
-            - Name: billingAccountName
-              Type: string
-            - Name: billingCurrency
-              Type: string
-            - Name: BillingPeriodEndDate
-              Type: string
-            - Name: billingperiodenddateparsed
-              Type: string
-            - Name: BillingPeriodStartDate
-              Type: string
-            - Name: billingperiodstartdateparsed
-              Type: string
-            - Name: BillingProfileId
-              Type: bigint
-            - Name: BillingProfileName
-              Type: string
-            - Name: ChargeType
-              Type: string
-            - Name: ConsumedService
-              Type: string
-            - Name: CostAllocationRuleName
-              Type: string
-            - Name: CostCenter
-              Type: string
-            - Name: CostInBillingCurrency
-              Type: double
-            - Name: Date
-              Type: string
-            - Name: DateParsed
-              Type: string
-            - Name: EffectivePrice
-              Type: double
-            - Name: Frequency
-              Type: string
-            - Name: InvoiceSectionId
-              Type: string
-            - Name: InvoiceSection
-              Type: string
-            - Name: IsAzureCreditEligible
-              Type: string
-            - Name: MeterCategory
-              Type: string
-            - Name: MeterId
-              Type: string
-            - Name: MeterName
-              Type: string
-            - Name: MeterRegion
-              Type: string
-            - Name: MeterSubCategory
-              Type: string
-            - Name: OfferId
-              Type: string
-            - Name: PartNumber
-              Type: string
-            - Name: PayGPrice
-              Type: bigint
-            - Name: PlanName
-              Type: string
-            - Name: PricingModel
-              Type: string
-            - Name: Product
-              Type: string
-            - Name: ProductOrderId
-              Type: string
-            - Name: ProductOrderName
-              Type: string
-            - Name: PublisherName
-              Type: string
-            - Name: PublisherType
-              Type: string
-            - Name: Quantity
-              Type: double
-            - Name: ReservationId
-              Type: string
-            - Name: ReservationName
-              Type: string
-            - Name: ResourceGroup
-              Type: string
-            - Name: ResourceId
-              Type: string
-            - Name: ResourceLocation
-              Type: string
-            - Name: ResourceName
-              Type: string
-            - Name: ServiceFamily
-              Type: string
-            - Name: ServiceInfo1
-              Type: string
-            - Name: ServiceInfo2
-              Type: string
-            - Name: SubscriptionId
-              Type: string
-            - Name: SubscriptionName
-              Type: string
-            - Name: Tags
-              Type: string
-            - Name: Term
-              Type: string
-            - Name: UnitOfMeasure
-              Type: string
-            - Name: UnitPrice
-              Type: double
-            - Name: AdditionalInfo
-              Type: struct<Provider:string,ConsumptionBeginTime:string,AppServicePlanUri:string,IpAddress:string,PlatformType:string,PipelineType:string,DataTransferDirection:string,GlobalDatabaseAccountName:string,CollectionName:string,CollectionRid:string,DatabaseName:string,UsageType:string,Region:string,ImageType:string,ServiceType:string,VMName:string,VMProperties:string,VCPUs:int,StorageService:string,MeteredService:string,NodesPerShardCount:string,MeteredServiceType:string,ServiceInfo:string,UsageResource:string,InfoFieldProject:string,HostNames:string,bucketId:string,zoneId:string,HostedServiceLabel:string,DeploymentLabel:string,vCores:int,SLO:string,UniqueResourceId:string,InfoField:string,ResourceCategory:string,TargetResourceID:string,EmittingService:string,AutoscaleVersion:string,AHB:string,ReservationOrderId:string,ReservationId:string,ConsumptionMeter:string,AccountName:string,PoolName:string,ConfigType:string,NodeType:string,PoolAllocationMode:string,gatewayName:string,vnetName:string>
-            # EA account type specific datafields as per documentation
-            - Name: BillingPeriod
-              Type: string
-            - Name: Cost
-              Type: double
-            - Name: Currency
-              Type: string
-            - Name: InvoiceSectionName
-              Type: string
-            # unknown account type datafields encountered in field
-            - Name: BillingCurrencyCode
-              Type: string
-            - Name: ProductName
-              Type: string
   GlueJob:
     Type: AWS::Glue::Job
     Properties:
@@ -982,8 +853,8 @@ Resources:
     Properties:
       Name: cidazure-var_bulk_run
       Type: String
-      Value: "true"
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter.Set to true (lowercase t) if this is the first data copy or you are reprocessing, otherwise false.
+      Value: !If [Deploy, "true", "false"]
+      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Set to true (lowercase t) if this is the first data copy or you are reprocessing, otherwise false.
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}

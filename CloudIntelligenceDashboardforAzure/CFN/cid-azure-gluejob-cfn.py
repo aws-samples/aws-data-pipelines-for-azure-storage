@@ -1,6 +1,6 @@
 # AWS Cloud Intelligence Dashboard for Azure Glue Script - CloudFormation
 
-# Glue base
+### Glue base
 import sys
 import boto3
 from awsglue.transforms import *
@@ -13,7 +13,7 @@ sc = SparkContext.getOrCreate()
 glueContext = GlueContext(sc)
 spark = glueContext.spark_session
 
-# Parameters fetched from System Manager Parameter Store
+### Parameters fetched from System Manager Parameter Store
 ssm_client = boto3.client('ssm')
 
 var_account_type = ((ssm_client.get_parameter(Name="cidazure-var_account_type"))['Parameter']['Value'])
@@ -31,7 +31,7 @@ var_raw_folder = ((ssm_client.get_parameter(Name="cidazure-var_raw_folder"))['Pa
 var_raw_path = ((ssm_client.get_parameter(Name="cidazure-var_raw_path"))["Parameter"]["Value"])+((ssm_client.get_parameter(Name="cidazure-var_folderpath"))["Parameter"]["Value"])
 SELECTED_TAGS = ((ssm_client.get_parameter(Name="cidazure-var_azuretags"))['Parameter']['Value']).split(", ")
 
-# Copy Function
+### Copy Function
 import concurrent.futures
 def copy_s3_objects(source_bucket, source_folder, destination_bucket, destination_folder):
     s3_client = boto3.client('s3')
@@ -51,7 +51,7 @@ def copy_s3_objects(source_bucket, source_folder, destination_bucket, destinatio
     else:
         print(("INFO: No files in {}, copy process skipped.").format(source_folder))
 
-# Delete Function
+### Delete Function
 def delete_s3_folder(bucket, folder):
     s3_client = boto3.client('s3')
     response = s3_client.list_objects(Bucket=bucket, Prefix=folder)
@@ -63,7 +63,7 @@ def delete_s3_folder(bucket, folder):
     else:
         print(("INFO: No files in {}, delete process skipped.").format(folder))
 
-# Bulk Run. Process only latest object for each month.
+### Bulk Run. Process only latest object for each month.
 from datetime import datetime
 
 if var_bulk_run == 'true':
@@ -108,7 +108,7 @@ if var_bulk_run == 'true':
 else:
     print("INFO: Bulk run is set to {}, continuing with normal run".format(var_bulk_run))
 
-# Read CSV files.
+### Read CSV files.
 import os
 
 try:
@@ -118,14 +118,18 @@ except Exception as e:
     print("ERROR: {}".format(e))
     raise e
 
-# Create column Tags_map (transformed Tags column as map)
+### Create column Tags_map (transformed Tags column as map)
 from pyspark.sql.functions import col, udf
 from pyspark.sql.types import ArrayType, StringType, MapType
 import json
 
+# Function handles JSON or instances where curly braces are missing from tag column.
 def transform_to_map(resource_tags):
-    if resource_tags: return dict(json.loads("{" + resource_tags + "}"))
-    return ""
+    if resource_tags:
+        if resource_tags.startswith('{'):
+            return dict(json.loads(resource_tags))
+        else:
+            return dict(json.loads("{" + resource_tags + "}"))
 tagsTransformToMapUDF = udf(lambda x:transform_to_map(x), MapType(StringType(), StringType()))
 df1 = df1.withColumn("Tags_map", tagsTransformToMapUDF(col("Tags")))
 
@@ -133,7 +137,18 @@ df1 = df1.withColumn("Tags_map", tagsTransformToMapUDF(col("Tags")))
 for tag in SELECTED_TAGS:
     df1 = df1.withColumn("tag-"+tag, df1.Tags_map.getItem(tag))
 
-# Identify account type parse dates and cast datatypes
+### IMPORTANT: CSV columns must match the field names in this script and are case sensitive. If they do not match, update the first value in each line below.
+df1 = df1.withColumnRenamed("date", "Date") \
+         .withColumnRenamed("cost", "Cost") \
+         .withColumnRenamed("costInBillingCurrency", "CostInBillingCurrency") \
+         .withColumnRenamed("billingPeriodStartDate", "BillingPeriodStartDate") \
+         .withColumnRenamed("billingPeriodEndDate", "BillingPeriodEndDate") \
+         .withColumnRenamed("effectivePrice", "EffectivePrice") \
+         .withColumnRenamed("PayGPrice", "PayGPrice") \
+         .withColumnRenamed("quantity", "Quantity") \
+         .withColumnRenamed("unitPrice", "UnitPrice")
+
+### Identify account type parse dates and cast datatypes
 from pyspark.sql.functions import to_date
 from pyspark.sql.functions import col
 from pyspark.sql.types import *
@@ -146,10 +161,8 @@ try:
         df2 = df1.withColumn("DateParsed", to_date(df1.Date, var_date_format)) \
             .withColumn("BillingPeriodStartDateParsed", to_date(df1.BillingPeriodStartDate, var_date_format)) \
             .withColumn("BillingPeriodEndDateParsed", to_date(df1.BillingPeriodEndDate, var_date_format)) \
-            .withColumn("BillingProfileId", col("BillingProfileId").cast(LongType())) \
             .withColumn("CostInBillingCurrency", col("CostInBillingCurrency").cast(DecimalType(21, 16))) \
             .withColumn("EffectivePrice", col("EffectivePrice").cast(DecimalType(21, 16))) \
-            .withColumn("IsAzureCreditEligible", col("IsAzureCreditEligible").cast(BooleanType())) \
             .withColumn("PayGPrice", col("PayGPrice").cast(LongType())) \
             .withColumn("Quantity", col("Quantity").cast(DoubleType())) \
             .withColumn("UnitPrice", col("UnitPrice").cast(DoubleType()))
@@ -169,12 +182,12 @@ except Exception as e:
     print("ERROR: {}".format(e))
     raise e
 
-# Create partition column
+### Create partition column
 from pyspark.sql.functions import trunc
 
 df2 = df2.withColumn("Month", trunc(df2.DateParsed, "MM"))
 
-# Parquet clean up to avoid duplication.
+### Parquet clean up to avoid duplication.
 from pyspark.sql.functions import date_trunc
 
 try:
@@ -196,7 +209,7 @@ except Exception as e:
     print("ERROR: {}".format(e))
     raise e
 
-# Create parquet files and update glue catalog
+### Create parquet files and update glue catalog
 from awsglue.dynamicframe import DynamicFrame
 
 try:
@@ -213,13 +226,13 @@ except Exception as e:
     print("ERROR: {}".format(e))
     raise e
 
-# Copy CSV files from raw to processed
+### Copy CSV files from raw to processed
 copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_processed_folder)
 
-# Delete raw files
+### Delete raw files
 delete_s3_folder(var_bucket, var_raw_folder)
 
-# Sample Jupyter Notebook tests
+### Sample Jupyter Notebook tests
 # df2.select('Date','DateParsed','BillingPeriodStartDate','BillingPeriodStartDateParsed','BillingPeriodEndDate','BillingPeriodEndDateParsed','Month','ResourceId','AdditionalInfo').show(10)
 # df2.printSchema()
 # from pyspark.sql.functions import sum as sum
