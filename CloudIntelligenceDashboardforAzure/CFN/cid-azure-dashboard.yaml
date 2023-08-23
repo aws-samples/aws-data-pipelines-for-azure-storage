@@ -95,16 +95,16 @@ datasets:
       ImportMode: SPICE
     dependsOn:
       views:
-        - ${customer}gld${environment}cidazure_athena_view
+        - ${customer}glt${environment}cidazure_athena_view
     schedules:
     - default
 views:
-  ${customer}gld${environment}cidazure_athena_view:
+  ${customer}glt${environment}cidazure_athena_view:
     dependsOn:
       views:
         - ${customer}glt${environment}cidazure
     data: |-
-      CREATE OR REPLACE VIEW ${athena_database_name}.${customer}gld${environment}cidazure_athena_view AS
+      CREATE OR REPLACE VIEW ${athena_database_name}.${customer}glt${environment}cidazure_athena_view AS
       SELECT *
       FROM
         ${source_table}
