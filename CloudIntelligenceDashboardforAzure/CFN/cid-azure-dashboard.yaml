@@ -19,7 +19,7 @@ datasets:
             DataSourceArn: ${athena_datasource_arn}
             Catalog: AwsDataCatalog
             Schema: ${athena_database_name}
-            Name: ${customer}gld${environment}cidazure_athena_view
+            Name: ${customer}glt${environment}cidazure_athena_view
             InputColumns:
             - Name: accountname
               Type: STRING
@@ -65,7 +65,7 @@ datasets:
               Type: DATETIME
       LogicalTableMap:
         ad02f24b-6c52-4c3b-b6bd-622ecbff5aee:
-          Alias: ${customer}gld${environment}cidazure_athena_view
+          Alias: ${customer}glt${environment}cidazure_athena_view
           DataTransforms:
           - ProjectOperation:
               ProjectedColumns:
