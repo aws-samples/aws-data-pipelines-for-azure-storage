@@ -14,88 +14,90 @@ datasets:
       DataSetId: ${customer}gld${environment}cidazure
       Name: ${customer}gld${environment}cidazure
       PhysicalTableMap:
-        4dae6f38-bac9-4a59-ace7-4ad725cb3c9d:
+        6bd8744d-0c73-4c7b-ad8c-98a80db21b3a:
           RelationalTable:
             DataSourceArn: ${athena_datasource_arn}
             Catalog: AwsDataCatalog
             Schema: ${athena_database_name}
             Name: ${customer}gld${environment}cidazure_athena_view
             InputColumns:
-              - Name: accountname
-                Type: STRING
-              - Name: billingaccountname
-                Type: STRING
-              - Name: billingperiodenddate
-                Type: STRING
-              - Name: billingperiodstartdate
-                Type: STRING
-              - Name: costinbillingcurrency
-                Type: DECIMAL
-              - Name: date
-                Type: STRING
-              - Name: effectiveprice
-                Type: DECIMAL
-              - Name: metercategory
-                Type: STRING
-              - Name: metersubcategory
-                Type: STRING
-              - Name: paygprice
-                Type: INTEGER
-              - Name: product
-                Type: STRING
-              - Name: quantity
-                Type: DECIMAL
-              - Name: resourcelocation
-                Type: STRING
-              - Name: subscriptionname
-                Type: STRING
-              - Name: tags
-                Type: STRING
-              - Name: unitofmeasure
-                Type: STRING
-              - Name: unitprice
-                Type: DECIMAL
-              - Name: dateparsed
-                Type: DATETIME
-              - Name: billingperiodstartdateparsed
-                Type: DATETIME
-              - Name: billingperiodenddateparsed
-                Type: DATETIME
-              - Name: month
-                Type: DATETIME
+            - Name: accountname
+              Type: STRING
+            - Name: subscriptionname
+              Type: STRING
+            - Name: resourcelocation
+              Type: STRING
+            - Name: date
+              Type: STRING
+            - Name: product
+              Type: STRING
+            - Name: metercategory
+              Type: STRING
+            - Name: metersubcategory
+              Type: STRING
+            - Name: unitofmeasure
+              Type: STRING
+            - Name: quantity
+              Type: DECIMAL
+            - Name: effectiveprice
+              Type: DECIMAL
+            - Name: costinbillingcurrency
+              Type: DECIMAL
+            - Name: tags
+              Type: STRING
+            - Name: unitprice
+              Type: DECIMAL
+            - Name: billingaccountname
+              Type: STRING
+            - Name: billingperiodstartdate
+              Type: STRING
+            - Name: billingperiodenddate
+              Type: STRING
+            - Name: paygprice
+              Type: INTEGER
+            - Name: billingperiodenddateparsed
+              Type: DATETIME
+            - Name: billingperiodstartdateparsed
+              Type: DATETIME
+            - Name: dateparsed
+              Type: DATETIME
+            - Name: month
+              Type: DATETIME
       LogicalTableMap:
-        9f457682-4997-40ac-a340-bd5cfabaac30:
+        ad02f24b-6c52-4c3b-b6bd-622ecbff5aee:
           Alias: ${customer}gld${environment}cidazure_athena_view
           DataTransforms:
-            - ProjectOperation:
-                ProjectedColumns:
-                  - accountname
-                  - billingaccountname
-                  - billingperiodenddate
-                  - billingperiodstartdate
-                  - costinbillingcurrency
-                  - date
-                  - effectiveprice
-                  - metercategory
-                  - metersubcategory
-                  - paygprice
-                  - product
-                  - quantity
-                  - resourcelocation
-                  - subscriptionname
-                  - tags
-                  - unitofmeasure
-                  - unitprice
-                  - dateparsed
-                  - billingperiodstartdateparsed
-                  - billingperiodenddateparsed
-                  - month
+          - ProjectOperation:
+              ProjectedColumns:
+              - accountname
+              - subscriptionname
+              - resourcelocation
+              - date
+              - product
+              - metercategory
+              - metersubcategory
+              - unitofmeasure
+              - quantity
+              - effectiveprice
+              - costinbillingcurrency
+              - tags
+              - unitprice
+              - billingaccountname
+              - billingperiodstartdate
+              - billingperiodenddate
+              - paygprice
+              - billingperiodenddateparsed
+              - billingperiodstartdateparsed
+              - dateparsed
+              - month
           Source:
-            PhysicalTableId: 4dae6f38-bac9-4a59-ace7-4ad725cb3c9d
+            PhysicalTableId: 6bd8744d-0c73-4c7b-ad8c-98a80db21b3a
       ImportMode: SPICE
     dependsOn:
       views:
         - ${customer}gld${environment}cidazure_athena_view
+    schedules:
+    - default
 views:
   ${customer}gld${environment}cidazure_athena_view:
     dependsOn:
@@ -106,9 +108,8 @@ views:
       SELECT *
       FROM
         ${source_table}
-      WHERE month >= DATE(to_iso8601(current_date - interval '6' month))
-#        ${customer}glt${environment}cidazure
-parameters:
+      WHERE (month >= DATE(to_iso8601((current_date - INTERVAL  '6' MONTH))))
+    parameters:
   customer:
     default: "cid"
     description: id of customer. Can be any alphanumeric string
