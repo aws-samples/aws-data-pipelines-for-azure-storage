@@ -23,37 +23,11 @@ datasets:
             InputColumns:
               - Name: accountname
                 Type: STRING
-              - Name: accountownerid
-                Type: STRING
-              - Name: additionalinfo
-                Type: STRING
-              - Name: availabilityzone
-                Type: STRING
-              - Name: benefitid
-                Type: STRING
-              - Name: benefitname
-                Type: STRING
-              - Name: billingaccountid
-                Type: STRING
               - Name: billingaccountname
-                Type: STRING
-              - Name: billingcurrency
                 Type: STRING
               - Name: billingperiodenddate
                 Type: STRING
               - Name: billingperiodstartdate
-                Type: STRING
-              - Name: billingprofileid
-                Type: INTEGER
-              - Name: billingprofilename
-                Type: STRING
-              - Name: chargetype
-                Type: STRING
-              - Name: consumedservice
-                Type: STRING
-              - Name: costallocationrulename
-                Type: STRING
-              - Name: costcenter
                 Type: STRING
               - Name: costinbillingcurrency
                 Type: DECIMAL
@@ -61,86 +35,26 @@ datasets:
                 Type: STRING
               - Name: effectiveprice
                 Type: DECIMAL
-              - Name: frequency
-                Type: STRING
-              - Name: invoicesectionid
-                Type: STRING
-              - Name: invoicesectionname
-                Type: STRING
-              - Name: isazurecrediteligible
-                Type: BOOLEAN
               - Name: metercategory
-                Type: STRING
-              - Name: meterid
-                Type: STRING
-              - Name: metername
-                Type: STRING
-              - Name: meterregion
                 Type: STRING
               - Name: metersubcategory
                 Type: STRING
-              - Name: offerid
-                Type: STRING
-              - Name: partnumber
-                Type: STRING
               - Name: paygprice
                 Type: INTEGER
-              - Name: planname
-                Type: STRING
-              - Name: pricingmodel
-                Type: STRING
               - Name: product
-                Type: STRING
-              - Name: productorderid
-                Type: STRING
-              - Name: productordername
-                Type: STRING
-              - Name: publishername
-                Type: STRING
-              - Name: publishertype
                 Type: STRING
               - Name: quantity
                 Type: DECIMAL
-              - Name: reservationid
-                Type: STRING
-              - Name: reservationname
-                Type: STRING
-              - Name: resourcegroup
-                Type: STRING
-              - Name: resourceid
-                Type: STRING
               - Name: resourcelocation
-                Type: STRING
-              - Name: resourcename
-                Type: STRING
-              - Name: servicefamily
-                Type: STRING
-              - Name: serviceinfo1
-                Type: STRING
-              - Name: serviceinfo2
-                Type: STRING
-              - Name: subscriptionid
                 Type: STRING
               - Name: subscriptionname
                 Type: STRING
               - Name: tags
                 Type: STRING
-              - Name: term
-                Type: STRING
               - Name: unitofmeasure
                 Type: STRING
               - Name: unitprice
                 Type: DECIMAL
-              - Name: tags_map
-                Type: STRING
-              - Name: tag-environment
-                Type: STRING
-              - Name: tag-costcenter
-                Type: STRING
-              - Name: tag-system
-                Type: STRING
-              - Name: tag-department
-                Type: STRING
               - Name: dateparsed
                 Type: DATETIME
               - Name: billingperiodstartdateparsed
@@ -156,65 +70,22 @@ datasets:
             - ProjectOperation:
                 ProjectedColumns:
                   - accountname
-                  - accountownerid
-                  - additionalinfo
-                  - availabilityzone
-                  - benefitid
-                  - benefitname
-                  - billingaccountid
                   - billingaccountname
-                  - billingcurrency
                   - billingperiodenddate
                   - billingperiodstartdate
-                  - billingprofileid
-                  - billingprofilename
-                  - chargetype
-                  - consumedservice
-                  - costallocationrulename
-                  - costcenter
                   - costinbillingcurrency
                   - date
                   - effectiveprice
-                  - frequency
-                  - invoicesectionid
-                  - invoicesectionname
-                  - isazurecrediteligible
                   - metercategory
-                  - meterid
-                  - metername
-                  - meterregion
                   - metersubcategory
-                  - offerid
-                  - partnumber
                   - paygprice
-                  - planname
-                  - pricingmodel
                   - product
-                  - productorderid
-                  - productordername
-                  - publishername
-                  - publishertype
                   - quantity
-                  - reservationid
-                  - reservationname
-                  - resourcegroup
-                  - resourceid
                   - resourcelocation
-                  - resourcename
-                  - servicefamily
-                  - serviceinfo1
-                  - serviceinfo2
-                  - subscriptionid
                   - subscriptionname
                   - tags
-                  - term
                   - unitofmeasure
                   - unitprice
-                  - tags_map
-                  - tag-environment
-                  - tag-costcenter
-                  - tag-system
-                  - tag-department
                   - dateparsed
                   - billingperiodstartdateparsed
                   - billingperiodenddateparsed
