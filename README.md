@@ -1,6 +1,11 @@
-## AWS Data Pipelines for Azure Storage
+# AWS Data Pipelines for Azure Storage
+This repository contains two projects.
 
-Staging in Progress
+## AWS Cloud intelligence Dashboard for Azure
+View Microsoft Azure usage data in Amazon QuickSight. 
+
+## Azure blob to Amazon S3 Copy
+Copy data from Azure blob storage to Amazon S3
 
 ## Contributing
 

@@ -76,7 +76,6 @@ Parameters:
     AllowedValues:
       - MCA
       - EA
-      - PTAX
   AzureBlobURL:
     Type: String
     Description: Microsoft Azure Primary Blob endpoint URL
