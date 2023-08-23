@@ -13,7 +13,7 @@ sc = SparkContext.getOrCreate()
 glueContext = GlueContext(sc)
 spark = glueContext.spark_session
 
-### Parameters fetched from System Manager Parameter Store
+### Parameters fetched from AWS Systems Manager Parameter Store
 ssm_client = boto3.client('ssm')
 
 var_account_type = ((ssm_client.get_parameter(Name="cidazure-var_account_type"))['Parameter']['Value'])
@@ -39,7 +39,7 @@ def copy_s3_objects(source_bucket, source_folder, destination_bucket, destinatio
         copy_source = {'Bucket': source_bucket, 'Key': obj['Key']}
         target_key = obj['Key'].replace(source_folder, destination_folder)
         s3_client.copy_object(Bucket=destination_bucket, Key=target_key, CopySource=copy_source, TaggingDirective='COPY')
-    # Get the list of files
+    # Get list of files
     response = s3_client.list_objects(Bucket=source_bucket, Prefix=source_folder)
     objects = response.get('Contents', [])
     if objects:
@@ -62,12 +62,12 @@ def delete_s3_folder(bucket, folder):
     else:
         print(("INFO: No files in {}, delete process skipped.").format(folder))
 
-### Bulk Run. Process only latest object for each month.
+### Bulk Run - process latest object for each month
 from datetime import datetime
 
 if var_bulk_run == 'true':
     print("INFO: Bulk run is set to {}, starting bulk run".format(var_bulk_run))
-    # Copy CSV files from raw to processed
+    # Copy CSV from raw to processed
     copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_processed_folder)
     # Delete raw files
     delete_s3_folder(var_bucket, var_raw_folder)
@@ -102,7 +102,7 @@ if var_bulk_run == 'true':
         key = file_info['key']
         new_key = key.replace(var_processed_folder, var_raw_folder)
         copy_s3_objects(var_bucket, key, var_bucket, new_key)
-    # Print objects in the raw bucket, allows for latest file identification if bulk run fails
+    # Print objects in the raw bucket, allows for file identification if bulk run fails
     s3 = boto3.client('s3')
     objects = s3.list_objects(Bucket=var_bucket).get('Contents', [])
     print("INFO: Bulk run complete, latest files for each month:")
@@ -112,7 +112,7 @@ if var_bulk_run == 'true':
 else:
     print("INFO: Bulk run is set to {}, continuing with normal run".format(var_bulk_run))
 
-### Read CSV files and append file_path row
+### Read CSV and append file_path column
 import os
 from pyspark.sql.functions import input_file_name
 
@@ -183,7 +183,7 @@ try:
     errors_df = df2.filter(
         # Checks Tags starts with '"' or '{'
         (~col("Tags").rlike(r'^[{\"].*')) |
-        # Checks Dateparsed is a valid date format
+        # Checks Dateparsed has valid date format
         (col("DateParsed").isNull()) |
         to_date(col("DateParsed"), "yyyy-MM-dd").isNull()
     )
@@ -209,7 +209,7 @@ from pyspark.sql.functions import col, udf
 from pyspark.sql.types import ArrayType, StringType, MapType
 import json
 
-# Function handles JSON or instances where curly braces are missing from tag column.
+# Function handle JSON or instances where curly braces are missing from tag column.
 def transform_to_map(resource_tags):
     if resource_tags:
         if resource_tags.startswith('{'):
@@ -243,7 +243,7 @@ try:
     else:
         print("INFO: Parquet folder does not exist. No files to deduplicate")
 except Exception as e:
-    # If the file(s) cannot be processed move to error folder
+    # If CSV cannot be processed move to error folder
     if var_bulk_run == 'false':
         copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
         delete_s3_folder(var_bucket, var_raw_folder)
@@ -261,7 +261,7 @@ try:
     sink.setCatalogInfo(catalogDatabase=(var_glue_database), catalogTableName=(var_glue_table))
     sink.writeFrame(dyf3)
 except Exception as e:
-    # If the file(s) cannot be processed move to error folder
+    # If the CSV cannot be processed move to error folder
     if var_bulk_run == 'false':
         copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
         delete_s3_folder(var_bucket, var_raw_folder)
@@ -273,10 +273,10 @@ except Exception as e:
 if var_bulk_run == 'true':
     ssm_client.put_parameter(Name='cidazure-var_bulk_run',Value='false',Type='String',Overwrite=True)
 
-### Copy CSV files from raw to processed
+### Copy CSV from raw to processed
 copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_processed_folder)
 
-### Delete raw files
+### Delete CSV from raw
 delete_s3_folder(var_bucket, var_raw_folder)
 
 ### Sample Jupyter Notebook tests
