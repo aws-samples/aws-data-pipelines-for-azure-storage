@@ -124,7 +124,7 @@ except Exception as e:
     print("ERROR: {}".format(e))
     raise e
 
-### IMPORTANT: CSV column headers must match the second value below (case sensitive). Use the block below to map.
+### IMPORTANT: To parse AWS Glue script complete the mapping below. Change the first value to match CSV headers. Do not change the second value [CASE SENSITIVE]
 df1 = df1.withColumnRenamed("billingPeriodEndDate", "BillingPeriodEndDate") \
          .withColumnRenamed("billingPeriodStartDate", "BillingPeriodStartDate") \
          .withColumnRenamed("cost", "Cost") \
@@ -135,6 +135,16 @@ df1 = df1.withColumnRenamed("billingPeriodEndDate", "BillingPeriodEndDate") \
          .withColumnRenamed("quantity", "Quantity") \
          .withColumnRenamed("tags", "Tags") \
          .withColumnRenamed("unitPrice", "UnitPrice")
+
+### IMPORTANT: To render sample dashboard complete the mapping below. Change the first value to match CSV headers. Do not change the second value.
+df1 = df1.withColumnRenamed("accountName", "AccountName") \
+         .withColumnRenamed("billingAccountName", "BillingAccountName") \
+         .withColumnRenamed("meterCategory", "MeterCategory") \
+         .withColumnRenamed("meterSubCategory", "MeterSubCategory") \
+         .withColumnRenamed("ProductName", "Product") \
+         .withColumnRenamed("resourceLocation", "ResourceLocation") \
+         .withColumnRenamed("subscriptionName", "SubscriptionName") \
+         .withColumnRenamed("unitOfMeasure", "UnitOfMeasure")
 
 ### Identify account type parse dates and cast datatypes
 from pyspark.sql.functions import to_date
