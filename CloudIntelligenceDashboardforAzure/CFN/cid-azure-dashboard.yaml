@@ -109,7 +109,7 @@ views:
       FROM
         ${source_table}
       WHERE (month >= DATE(to_iso8601((current_date - INTERVAL  '6' MONTH))))
-    parameters:
+parameters:
   customer:
     default: "cid"
     description: id of customer. Can be any alphanumeric string
