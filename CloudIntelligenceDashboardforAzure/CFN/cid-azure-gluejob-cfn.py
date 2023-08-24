@@ -171,7 +171,7 @@ except Exception as e:
     if var_bulk_run == 'false':
         copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
         delete_s3_folder(var_bucket, var_raw_folder)
-    print("WARNING: Cannot parse columns. Error in CSV file(s). Moving to error folder")
+    print("WARNING: Cannot parse columns. Error in CSV file(s). Moved to error folder if normal run")
     print("ERROR: {}".format(e))
     raise e
 
@@ -247,7 +247,7 @@ except Exception as e:
     if var_bulk_run == 'false':
         copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
         delete_s3_folder(var_bucket, var_raw_folder)
-    print("WARNING: Cannot deduplicate. Error in CSV file(s). Moving to error folder")
+    print("WARNING: Cannot deduplicate. Error in CSV file(s). Moved to error folder if normal run")
     print("ERROR: {}".format(e))
     raise e
 
@@ -265,7 +265,7 @@ except Exception as e:
     if var_bulk_run == 'false':
         copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
         delete_s3_folder(var_bucket, var_raw_folder)
-    print("WARNING: Cannot convert file(s) to parquet. Moving to error folder")
+    print("WARNING: Cannot convert file(s) to parquet. Moved to error folder if normal run")
     print("ERROR: {}".format(e))
     raise e
 
