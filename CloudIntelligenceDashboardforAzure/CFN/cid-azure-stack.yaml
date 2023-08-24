@@ -76,7 +76,6 @@ Parameters:
     AllowedValues:
       - MCA
       - EA
-      - PTAX
   AzureBlobURL:
     Type: String
     Description: Microsoft Azure Primary Blob endpoint URL
@@ -148,7 +147,7 @@ Resources:
   #                                         Infrastructure Stack                                       #
   ######################################################################################################
 
-  ### Create a Resource Group for CloudFormation deployed resources
+  ### Create a Resource Group for CloudFormation resources
   ResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
@@ -566,7 +565,7 @@ Resources:
         - aws-quicksight-service-role-v0
   # TODO: Replace with QuickSight role-based access control to data sources that connect to Amazon S3 and Athena
 
-  ### Create Glue Resources [No Glue Registry or Glue Schema in this CFN Template]
+  ### Create Glue Resources
   GlueDatabase:
     Type: AWS::Glue::Database
     Properties:
@@ -665,6 +664,7 @@ Resources:
         Rtype: data
         Name: !Sub ${PrefixCode}glt${EnvironmentCode}cidazure
     Condition: Deploy
+  
   ### Create System Manager Parameters used by Glue script
   SMParameterVarRawPath:
     Type: AWS::SSM::Parameter
@@ -876,6 +876,7 @@ Resources:
         Solution: AWSCIDforAzure
         Rtype: parameter
         Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_error_folder
+  
   ### Create SSM Parameter to supply dashboard installation command
   SMParameterDashboardDeploy:
     Type: AWS::SSM::Parameter
@@ -891,6 +892,7 @@ Resources:
         Solution: AWSCIDforAzure
         Rtype: parameter
         Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_azuretags
+  
   ### Create Athena resources
   AthenaWorkgroup:
     Type: AWS::Athena::WorkGroup
