@@ -1,11 +1,61 @@
+"""
+MIT No Attribution
+
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+"""
 import json
 import math
+import re
+import time
 from urllib import parse
 from boto3 import client as Client
-import re
+from datetime import datetime, timezone
+
+def cloudwatch_printer(message: str, log_group='blob-to-s3-file-group', log_stream='blob-to-s3-file-stream'):
+    """
+    This function calls the CloudWatch API, creates a new log group and stream in case it doesn't exist and print into that stream a message.
+    """
+    cloudwatch_client = Client('logs')
+    # Attemp to create log group and stream
+    try:
+        cloudwatch_client.create_log_group(logGroupName=log_group)
+    except cloudwatch_client.exceptions.ResourceAlreadyExistsException:
+        print(f'Failed to create group {log_group}: ResourceAlreadyExistsException')
+    try:
+        cloudwatch_client.create_log_stream(logGroupName=log_group, logStreamName=log_stream)
+    except cloudwatch_client.exceptions.ResourceAlreadyExistsException:
+        print(f'Failed to create stream {log_stream}: ResourceAlreadyExistsException')
+    
+    # Crating the log event
+    cloudwatch_client.put_log_events(
+        logGroupName=log_group,
+        logStreamName=log_stream,
+        logEvents=[
+            {
+                'timestamp': int(round(time.time() * 1000)),
+                'message': message
+            },
+        ]
+    )
+    return 0
 
 # Function to initiate a multipart file upload to S3
 def lambda_handler(event, context):
+    start_t = time.time()
+
     response = event['Records'][0]['Sns'].get('Message','not found')
     values = json.loads(response)
     # BlobInfo contains the values payload as a property so loading that separately as valuePayload
@@ -28,7 +78,8 @@ def lambda_handler(event, context):
     s3 = Client('s3')
     tags = {"container": containerName,"blobname": re.sub("[^\w.:+=@_/-]", "-",blobName),"size": blobSize, "lastmodified": blobLastModified}
     blobkey = values.get('fullFilePath',''+'/'+fileName)
-    
+
+    cloudwatch_printer("INFO: File started being uploaded") #  TODO: specify the log group and stream, if not a predefined ones will be utilized
     mp_upload_id = s3.create_multipart_upload(
         Bucket=bucket_name,
         Key=blobkey,
@@ -36,6 +87,22 @@ def lambda_handler(event, context):
         ).get('UploadId','')
     print("mpuploadid",mp_upload_id)
     blob_partitions = int(math.ceil(blobSize / partitionSize))
+    end_t = time.time()
+
+    # Preparing the message for the log event
+    start_t_datetime = datetime.fromtimestamp(start_t, tz=timezone.utc)
+    end_t_datetime = datetime.fromtimestamp(end_t, tz=timezone.utc)
+    message = f"""
+               INFO: File succesfully uploaded to S3\n
+               blobname: {blobName}\n
+               destination bucket: {bucket_name}\n
+               start time: {start_t_datetime}\n
+               end time: {end_t_datetime}\n
+               files copied: {blob_partitions}\n
+               total file size: {blobSize}\n
+               duration: {end_t-start_t}\n
+               """
+    cloudwatch_printer(message) #  TODO: specify the log group and stream, if not a predefined ones will be utilized
 
     client = Client('sns')
 
