@@ -31,25 +31,36 @@ def cloudwatch_printer(message: str, log_group='blob-to-s3-file-group', log_stre
     cloudwatch_client = Client('logs')
     # Attemp to create log group and stream
     try:
-        cloudwatch_client.create_log_group(logGroupName=log_group)
-    except cloudwatch_client.exceptions.ResourceAlreadyExistsException:
-        print(f'Failed to create group {log_group}: ResourceAlreadyExistsException')
-    try:
-        cloudwatch_client.create_log_stream(logGroupName=log_group, logStreamName=log_stream)
-    except cloudwatch_client.exceptions.ResourceAlreadyExistsException:
-        print(f'Failed to create stream {log_stream}: ResourceAlreadyExistsException')
-    
-    # Crating the log event
-    cloudwatch_client.put_log_events(
-        logGroupName=log_group,
-        logStreamName=log_stream,
-        logEvents=[
-            {
-                'timestamp': int(round(time.time() * 1000)),
-                'message': message
-            },
-        ]
-    )
+        # Crating the log event
+        cloudwatch_client.put_log_events(
+            logGroupName=log_group,
+            logStreamName=log_stream,
+            logEvents=[
+                {
+                    'timestamp': int(round(time.time() * 1000)),
+                    'message': message
+                },
+            ]
+        )
+    except cloudwatch_client.exceptions.ResourceNotFoundException as e:
+        # If group doesn't exist: create group and stream
+        if 'The specified log group does not exist' in str(e): 
+            cloudwatch_client.create_log_group(logGroupName=log_group)
+            cloudwatch_client.create_log_stream(logGroupName=log_group, logStreamName=log_stream)
+        # If group exists but stream doesn't: create stream
+        elif 'The specified log stream does not exist' in str(e):
+            cloudwatch_client.create_log_stream(logGroupName=log_group, logStreamName=log_stream)
+        # Create event
+        cloudwatch_client.put_log_events(
+            logGroupName=log_group,
+            logStreamName=log_stream,
+            logEvents=[
+                {
+                    'timestamp': int(round(time.time() * 1000)),
+                    'message': message
+                },
+            ]
+        )
     return 0
 
 # Function to initiate a multipart file upload to S3
