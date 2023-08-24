@@ -98,7 +98,12 @@ datasets:
       views:
         - ${customer}glt${environment}cidazure_athena_view
     schedules:
-    - default
+      default:
+        ScheduleId: cid
+        ScheduleFrequency:
+          Interval: DAILY
+          TimeOfTheDay: '05:00-06:00'
+        RefreshType: FULL_REFRESH
 views:
   ${customer}glt${environment}cidazure_athena_view:
     dependsOn:
