@@ -83,7 +83,7 @@ def lambda_handler(event, context):
     
         )
     
-    cloudwatch_printer('INFO: File succesfully uploaded to S3')
+    cloudwatch_printer(f'INFO: {blobkey} succesfully uploaded to S3')
 
     return {
         'statusCode': 200,

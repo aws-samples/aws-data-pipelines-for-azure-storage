@@ -127,7 +127,8 @@ def lambda_handler(event, context):
                total file size: {blobSize}\n
                duration: {end_t-start_t}\n
                """
-    
+    cloudwatch_printer(message)
+
     return {
         'statusCode': 200,
         'body': json.dumps(response)
