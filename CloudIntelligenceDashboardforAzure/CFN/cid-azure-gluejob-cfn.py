@@ -124,7 +124,7 @@ except Exception as e:
     print("ERROR: {}".format(e))
     raise e
 
-### IMPORTANT: To parse AWS Glue script complete the mapping below. Change the first value to match CSV headers. Do not change the second value [CASE SENSITIVE]
+### MAPPING SECTION 1: To parse AWS Glue script complete the mapping below. Change the first value to match CSV headers. Do not change the second value [CASE SENSITIVE]
 df1 = df1.withColumnRenamed("billingPeriodEndDate", "BillingPeriodEndDate") \
          .withColumnRenamed("billingPeriodStartDate", "BillingPeriodStartDate") \
          .withColumnRenamed("cost", "Cost") \
@@ -136,7 +136,7 @@ df1 = df1.withColumnRenamed("billingPeriodEndDate", "BillingPeriodEndDate") \
          .withColumnRenamed("tags", "Tags") \
          .withColumnRenamed("unitPrice", "UnitPrice")
 
-### IMPORTANT: To render sample dashboard complete the mapping below. Change the first value to match CSV headers. Do not change the second value.
+### MAPPING SECTION 2: To render sample dashboard complete the mapping below. Change the first value to match CSV headers. Do not change the second value.
 df1 = df1.withColumnRenamed("accountName", "AccountName") \
          .withColumnRenamed("billingAccountName", "BillingAccountName") \
          .withColumnRenamed("meterCategory", "MeterCategory") \
