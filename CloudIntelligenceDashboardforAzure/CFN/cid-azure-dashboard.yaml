@@ -7,8 +7,6 @@ dashboards:
     name: "${customer} ${environment} Azure Cost Dashboard"
     dashboardId: ${customer}-${environment}-azure-cost
     templateId: cid-azure-cost
-    sourceAccountId: "446423066913"
-    region: eu-west-2
 datasets:
   ${customer}gld${environment}cidazure:
     data:
