@@ -1,10 +1,18 @@
 ## Data Pipelines for Azure Storage
 Welcome! This repository contains two projects.
 
+- [Azure blob to Amazon S3 Copy](#azure-blob-to-amazon-s3-copy)
 - [Cloud intelligence Dashboard for Azure](#cloud-intelligence-dashboard-for-azure)
-- [Azure blob to Amazon S3 Copy](#azure-blob-to-amazon-s3-copy).
 - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+### Azure blob to Amazon S3 Copy
+
+Copy data from Azure blob storage to Amazon S3
+
+![Azure blob to Amazon S3 architecture](https://static.us-east-1.prod.workshops.aws/public/f68ceac7-ccda-4cf5-b04a-9873857b025a/static/images/azs3copy-midlevel-grey.png)
 
 ---
 
@@ -15,14 +23,6 @@ View Microsoft Azure usage data in Amazon QuickSight.
 ![Cloud Intelligence Dashboard for Azure architecture](https://static.us-east-1.prod.workshops.aws/public/f68ceac7-ccda-4cf5-b04a-9873857b025a/static/images/cidazure-midlevel-grey.png)
 
 Follow [workshop](https://catalog.workshops.aws/cidforazure) to install.
-
----
-
-### Azure blob to Amazon S3 Copy
-
-Copy data from Azure blob storage to Amazon S3
-
-![Azure blob to Amazon S3 architecture](https://static.us-east-1.prod.workshops.aws/public/f68ceac7-ccda-4cf5-b04a-9873857b025a/static/images/azs3copy-midlevel-grey.png)
 
 ---
 
