@@ -12,7 +12,7 @@ Welcome! This repository contains two projects.
 
 View Microsoft Azure usage data in Amazon QuickSight.
 
-![Cloud Intelligence Dashboard for Azure architecture](https://static.us-east-1.prod.workshops.aws/public/4041bf94-deb2-4ae8-98ac-292e38ae87cc/static/images/cidazure-midlevel-grey.png)
+![Cloud Intelligence Dashboard for Azure architecture](https://static.us-east-1.prod.workshops.aws/public/f68ceac7-ccda-4cf5-b04a-9873857b025a/static/images/cidazure-midlevel-grey.png)
 
 Follow [workshop](https://catalog.workshops.aws/cidforazure) to install.
 
@@ -22,7 +22,7 @@ Follow [workshop](https://catalog.workshops.aws/cidforazure) to install.
 
 Copy data from Azure blob storage to Amazon S3
 
-![Azure blob to Amazon S3 architecture](https://static.us-east-1.prod.workshops.aws/public/4041bf94-deb2-4ae8-98ac-292e38ae87cc/static/images/azs3copy-midlevel-grey.png)
+![Azure blob to Amazon S3 architecture](https://static.us-east-1.prod.workshops.aws/public/f68ceac7-ccda-4cf5-b04a-9873857b025a/static/images/azs3copy-midlevel-grey.png)
 
 ---
 
