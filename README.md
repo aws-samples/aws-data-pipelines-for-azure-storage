@@ -6,6 +6,8 @@ Welcome! This repository contains two projects.
 - [Contributing](#contributing)
 - [License](#license)
 
+---
+
 ### Cloud intelligence Dashboard for Azure
 
 ![Cloud Intelligence Dashboard for Azure architecture](https://static.us-east-1.prod.workshops.aws/public/4041bf94-deb2-4ae8-98ac-292e38ae87cc/static/images/cidazure-midlevel.png)
