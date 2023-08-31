@@ -12,13 +12,20 @@ Welcome! This repository contains two projects.
 
 Follow [workshop](https://catalog.workshops.aws/cidforazure) to install.
 
+---
+
 ### Azure blob to Amazon S3 Copy
+
+---
 
 ### Contributing
 
 See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
 
+---
+
 ### License
 
 This library is licensed under the MIT-0 License. See the LICENSE file.
 
+---
