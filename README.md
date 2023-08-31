@@ -22,6 +22,8 @@ Follow [workshop](https://catalog.workshops.aws/cidforazure) to install.
 
 Copy data from Azure blob storage to Amazon S3
 
+![Azure blob to Amazon S3 architecture](https://static.us-east-1.prod.workshops.aws/public/4041bf94-deb2-4ae8-98ac-292e38ae87cc/static/images/azs3copy-midlevel-grey.png)
+
 ---
 
 ### Contributing
