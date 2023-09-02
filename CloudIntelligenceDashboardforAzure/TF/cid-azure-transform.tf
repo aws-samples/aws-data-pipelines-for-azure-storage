@@ -83,6 +83,17 @@ resource "aws_iam_role_policy" "GlueIAM" {
         Resource = [
           "arn:aws:logs:${var.Region}:${data.aws_caller_identity.current.account_id}:log-group:*"
         ]
+      },
+      {
+        Action = [
+          "ssm:GetParameters",
+          "ssm:GetParameter",
+          "ssm:PutParameter"
+        ]
+        Effect = "Allow"
+        Resource = [
+          "arn:aws:ssm:${var.Region}:${data.aws_caller_identity.current.account_id}:parameter/cidazure*"
+        ]
       }
     ]
   })
@@ -146,7 +157,7 @@ resource "aws_s3_object" "cidazuregluepy" {
       var_processed_folder = "azurecidprocessed"
       var_processed_path   = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidprocessed/"
       var_raw_folder       = "azurecidraw"
-      var_raw_path         = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidraw/"
+      var_raw_path         = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidraw/${var.AzureFolderPath}"
       SELECTED_TAGS        = var.AzureTags
     }
   )

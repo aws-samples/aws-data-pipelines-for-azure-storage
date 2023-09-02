@@ -15,7 +15,7 @@ AzureTenantID      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 AzureSecretKey     = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 AzureDateFormat    = "MM/dd/yyyy"
 AzureFolderPath    = "directory/*"
-AzureTags          = "'Environment', 'CostCenter', 'System,', 'Department'"
+AzureTags          = "'Environment', 'CostCenter', 'System', 'Department'"
 
 # Data Copy Settings
 AzureCopySchedule     = "cron(0 3 * * ? *)"
