@@ -1,4 +1,4 @@
-# AWS Cloud Intelligence Dashboard for Azure QuickSight template
+# Cloud Intelligence Dashboard for Azure QuickSight template
 dashboards:
   AWSCIDFORAZURE:
     dependsOn:

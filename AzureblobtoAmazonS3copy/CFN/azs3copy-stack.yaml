@@ -101,10 +101,6 @@ Parameters:
     Type: String
 
 Resources:
-  ######################################################################################################
-  #                                         Infrastructure Stack                                       #
-  ######################################################################################################
-
   # Create a Resource Group for CloudFormation deployed resources
   ResourceGroup:
     Type: AWS::ResourceGroups::Group
@@ -409,11 +405,7 @@ Resources:
           Value: security
         - Key: Name
           Value: !Sub ${PrefixCode}iar${EnvironmentCode}azs3copyeventbrg
-
-  ######################################################################################################
-  #                                         Blob Copy Stack                                            #
-  ######################################################################################################
-
+          
   # Create Lambda Functions
   LambdaLayerVersionIdentity:
     Type: AWS::Lambda::LayerVersion

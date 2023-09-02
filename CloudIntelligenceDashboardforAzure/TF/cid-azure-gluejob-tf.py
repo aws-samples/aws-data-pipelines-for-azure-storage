@@ -1,4 +1,4 @@
-# Cloud Intelligence Dashboard for Azure Glue Script - CloudFormation
+# Cloud Intelligence Dashboard for Azure Glue Script - Terraform
 
 ### Glue base
 import sys
@@ -16,20 +16,20 @@ spark = glueContext.spark_session
 ### Parameters fetched from AWS Systems Manager Parameter Store
 ssm_client = boto3.client('ssm')
 
-var_account_type = ((ssm_client.get_parameter(Name="cidazure-var_account_type"))['Parameter']['Value'])
-var_bucket = ((ssm_client.get_parameter(Name="cidazure-var_bucket"))['Parameter']['Value'])
-var_date_format = ((ssm_client.get_parameter(Name="cidazure-var_date_format"))['Parameter']['Value'])
-var_bulk_run = ((ssm_client.get_parameter(Name="cidazure-var_bulk_run"))['Parameter']['Value'])
-var_error_folder = ((ssm_client.get_parameter(Name="cidazure-var_error_folder"))['Parameter']['Value'])
-var_glue_database = ((ssm_client.get_parameter(Name="cidazure-var_glue_database"))['Parameter']['Value'])
-var_glue_table = ((ssm_client.get_parameter(Name="cidazure-var_glue_table"))['Parameter']['Value'])
-var_parquet_folder = ((ssm_client.get_parameter(Name="cidazure-var_parquet_folder"))["Parameter"]["Value"])
-var_parquet_path = ((ssm_client.get_parameter(Name="cidazure-var_parquet_path"))["Parameter"]["Value"])
-var_processed_folder = ((ssm_client.get_parameter(Name="cidazure-var_processed_folder"))['Parameter']['Value'])
-var_processed_path = ((ssm_client.get_parameter(Name="cidazure-var_processed_path"))['Parameter']['Value'])
-var_raw_folder = ((ssm_client.get_parameter(Name="cidazure-var_raw_folder"))['Parameter']['Value'])
-var_raw_path = ((ssm_client.get_parameter(Name="cidazure-var_raw_path"))["Parameter"]["Value"])+((ssm_client.get_parameter(Name="cidazure-var_folderpath"))["Parameter"]["Value"])
-SELECTED_TAGS = ((ssm_client.get_parameter(Name="cidazure-var_azuretags"))['Parameter']['Value']).split(", ")
+var_account_type = "${var_account_type}"
+var_bucket = "${var_bucket}"
+var_date_format = "${var_date_format}"
+var_bulk_run = "${var_bulk_run}"
+var_error_folder = "${var_error_folder}"
+var_glue_database = "${var_glue_database}"
+var_glue_table = "${var_glue_table}"
+var_parquet_folder = "${var_parquet_folder}"
+var_parquet_path = "${var_parquet_path}"
+var_processed_folder = "${var_processed_folder}"
+var_processed_path = "${var_processed_path}"
+var_raw_folder = "${var_raw_folder}"
+var_raw_path = "${var_raw_path}"
+SELECTED_TAGS = [${SELECTED_TAGS}]
 
 ### Copy Function
 import concurrent.futures
