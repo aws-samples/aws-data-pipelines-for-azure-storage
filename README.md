@@ -77,6 +77,8 @@ View Microsoft Azure usage data in Amazon QuickSight.
 
 For Cloudformation or Terraform installation, follow instructions in the [Cloud Intelligence Dashboard for Azure](https://catalog.workshops.aws/cidforazure) workshop.
 
+To understand how the Azure Cost Usage files should be provided, take a look at the [sample CSV file](https://github.com/aws-samples/aws-data-pipelines-for-azure-storage/blob/main/CloudIntelligenceDashboardforAzure/cid-azure-sample.csv).
+
 ---
 
 ## Contributing
