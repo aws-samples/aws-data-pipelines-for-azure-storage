@@ -1,6 +1,6 @@
 # This Terraform Template deploys the Cloud Intelligence Dashboard for Azure
 
-# Create IAM configuration used throughout project
+### Create IAM configuration used throughout project
 resource "aws_iam_role" "GlueIAM" {
   name        = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "ccidazureglue")
   description = "Cloud Intelligence Dashboard for Azure IAM role for Glue"
@@ -139,7 +139,7 @@ resource "aws_iam_role_policy" "cidazurequicksight" {
 }
 # TODO: Replace with QuickSight role-based access control to data sources that connect to Amazon S3 and Athena
 
-# Upload Glue Script
+### Upload Glue Script
 resource "aws_s3_object" "cidazuregluepy" {
   bucket = aws_s3_bucket.S3Bucket.id
   key    = "scripts/cid-azure-gluejob-tf.py"
@@ -163,7 +163,7 @@ resource "aws_s3_object" "cidazuregluepy" {
   )
 }
 
-# Create Glue Resources
+### Create Glue Resources
 resource "aws_glue_catalog_database" "cidazure" {
   name        = format("%s%s%s%s", var.PrefixCode, "gld", var.EnvironmentCode, "cidazure")
   description = "Glue catalog database used to process Azure Cloud Intelligence Dashboard data"
@@ -238,7 +238,6 @@ resource "aws_glue_job" "cidazure" {
   }
 }
 
-# Create Glue Resources
 resource "aws_glue_security_configuration" "cidazure" {
   name = format("%s%s%s%s", var.PrefixCode, "glx", var.EnvironmentCode, "cidazure")
 
@@ -288,7 +287,7 @@ resource "aws_ssm_parameter" "cidazure" {
   }
 }
 
-# Create Athena resources
+### Create Athena resources
 resource "aws_athena_workgroup" "cidazure" {
   name          = format("%s%s%s%s", var.PrefixCode, "atw", var.EnvironmentCode, "cidazure")
   description   = "Cloud Intelligence Dashboard for Azure Athena Workgroup"

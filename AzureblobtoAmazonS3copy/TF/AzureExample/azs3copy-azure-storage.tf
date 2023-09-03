@@ -1,6 +1,6 @@
 # This Terraform Template is an example that demonstrates how to set up Azure resources for the Azure Blob to Amazon S3 Copy Solution.
 
-# Create Azure Resource Group
+### Create Azure Resource Group
 resource "azurerm_resource_group" "ResourceGroup" {
   name     = format("%s%s%s%s", var.PrefixCode, "rsg", var.EnvironmentCode, "azs3copy")
   location = var.region_azure
@@ -14,7 +14,7 @@ resource "azurerm_resource_group" "ResourceGroup" {
   }
 }
 
-# Create Azure App Registration
+### Create Azure App Registration
 data "azuread_client_config" "current" {}
 
 resource "azuread_application" "AppRegistration" {
@@ -38,7 +38,7 @@ resource "azuread_service_principal" "ServicePrincipal" {
   }
 }
 
-# Create Azure Log Analytics Workspace
+### Create Azure Log Analytics Workspace
 resource "azurerm_log_analytics_workspace" "Logging" {
   name                = format("%s%s%s%s", var.PrefixCode, "law", var.EnvironmentCode, "azs3copy")
   location            = azurerm_resource_group.ResourceGroup.location
@@ -47,7 +47,7 @@ resource "azurerm_log_analytics_workspace" "Logging" {
   retention_in_days   = 30
 }
 
-# Create Azure Storage
+### Create Azure Storage
 resource "azurerm_storage_account" "StorageAccount" {
   name                            = format("%s%s%s%s", var.PrefixCode, "sta", var.EnvironmentCode, "azs3copy")
   resource_group_name             = azurerm_resource_group.ResourceGroup.name
@@ -134,6 +134,6 @@ resource "azurerm_role_assignment" "BlobQueueContributor" {
   principal_id         = azuread_service_principal.ServicePrincipal.id
 }
 
-# Store Azure AD credentials in AWS Secrets Manager
+### Store Azure AD credentials in AWS Secrets Manager
 data "azurerm_client_config" "current" {}
 

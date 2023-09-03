@@ -1,6 +1,6 @@
 # This Terraform Template deploys the Azure Blob to Amazon S3 Copy Solution
 
-# Create a Resource Group for Terraform deployed resources
+### Create a Resource Group for Terraform deployed resources
 resource "aws_resourcegroups_group" "ResourceGroup" {
   name        = format("%s%s%s%s", var.PrefixCode, "rgg", var.EnvironmentCode, "azs3copy")
   description = "Azure Blob to Amazon S3 Copy resources"
@@ -39,7 +39,7 @@ JSON
   }
 }
 
-# Create Secrets Manager secret
+### Create Secrets Manager secret
 resource "aws_secretsmanager_secret" "SecretsManagerSecret" {
   name        = format("%s%s%s%s", var.PrefixCode, "sms", var.EnvironmentCode, "azs3copy")
   description = "Azure Blob to Amazon S3 Copy Secrets"
@@ -72,7 +72,7 @@ resource "aws_secretsmanager_secret_version" "SecretsManagerSecret" {
   })
 }
 
-# NOTE: Uncomment these lines if deploying Azure Example
+## NOTE: Uncomment these lines if deploying Azure Example
 # resource "aws_secretsmanager_secret_version" "SecretsManagerSecret" {
 #   secret_id = aws_secretsmanager_secret.SecretsManagerSecret.id
 #   secret_string = jsonencode({
@@ -91,7 +91,7 @@ resource "aws_secretsmanager_secret_version" "SecretsManagerSecret" {
 #   })
 # }
 
-# Create KMS key
+### Create KMS key
 resource "aws_kms_key" "KMSKey" {
   deletion_window_in_days = 7
   description             = "Azure Blob to Amazon S3 Copy KMS Key"
@@ -157,7 +157,7 @@ data "aws_iam_policy_document" "azurecidkms" {
   }
 }
 
-# Create S3 bucket to receive data
+### Create S3 bucket to receive data
 resource "aws_s3_bucket" "S3Bucket" {
   # Add static bucket name if required
   # bucket      = format("%s%s%s%s", var.PrefixCode, "sss", var.EnvironmentCode, "azs3copy")
@@ -392,7 +392,7 @@ resource "aws_iam_role_policy" "EventBridgeIAM" {
   })
 }
 
-# Create Lambda Functions
+### Create Lambda Functions
 resource "aws_lambda_layer_version" "azure-arm-identity" {
   filename                 = "../CFN/azure-arm-identity.zip"
   layer_name               = "azure-arm-identity"
@@ -589,7 +589,7 @@ resource "aws_lambda_function" "LambdaFunction06" {
   }
 }
 
-# Create SNS queues
+### Create SNS queues
 resource "aws_sns_topic" "SNSTopicL1L2" {
   name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyL1_to_L2")
   kms_master_key_id = "alias/aws/sns"
@@ -720,7 +720,7 @@ resource "aws_lambda_permission" "LambdaPermissionLargeFileRecomb" {
   source_arn    = aws_sns_topic.SNSTopicLargeFileRecomb.arn
 }
 
-# Create EventBridge schedule
+### Create EventBridge schedule
 resource "aws_cloudwatch_event_rule" "ScheduledRule" {
   name                = format("%s%s%s%s", var.PrefixCode, "evr", var.EnvironmentCode, "azs3copy")
   description         = "Azure Blob to Amazon S3 Copy Scheduled pull from Azure blob storage"
@@ -747,7 +747,7 @@ resource "aws_lambda_permission" "LambdaPermissionScheduledRule" {
   source_arn    = aws_cloudwatch_event_rule.ScheduledRule.arn
 }
 
-# Cloudwatch Dashboard
+### Cloudwatch Dashboard
 resource "aws_cloudwatch_dashboard" "CloudwatchDashboard" {
   dashboard_name = format("%s%s%s%s", var.PrefixCode, "cwd", var.EnvironmentCode, "azs3copy")
   dashboard_body = <<EOF
