@@ -17,7 +17,56 @@ For AWS CloudFormation installation, follow instructions in the [How to copy dat
 
 For Terraform installation follow the instructions below.
 
-TBC
+1. Download / Clone repository
+
+2. Locally, maintain the folder structure as is, and execute Terraform builds from the TF directory. Both the TF and CFN folders are necessary.
+
+3. You can use the [example](https://github.com/aws-samples/aws-data-pipelines-for-azure-storage/tree/main/AzureblobtoAmazonS3copy/TF/AzureExample) in the *AzureblobtoAmazonS3copy* folder to configure an Azure Storage account. Just move the files to the AzureblobtoAmazonS3copy/TF directory. If you decide to use this method, please edit the specified lines in *azs3copy-aws.tf* as below:
+
+```
+## NOTE: Comment out these lines if deploying Azure Example
+#resource "aws_secretsmanager_secret_version" "SecretsManagerSecret" {
+#  secret_id = aws_secretsmanager_secret.SecretsManagerSecret.id
+#  secret_string = jsonencode({
+#    bloburl     = var.AzureBlobURL 
+#    tenantid    = var.AzureTenantID
+#    appid       = var.AzureApplicationID
+#    appsecret   = var.AzureSecretKey
+#    bucket_name = "${aws_s3_bucket.S3Bucket.bucket}"
+#    isactive    = "True"
+#    begindate   = var.BlobToS3SyncStartDate
+#    sns_arn_l1  = "${aws_sns_topic.SNSTopicL1L2.arn}"
+#    sns_arn_l2  = "${aws_sns_topic.SNSTopicL2L3.arn}"
+#    sns_arn_l3  = "${aws_sns_topic.SNSTopicLargeFileInit.arn}"
+#    sns_arn_l4  = "${aws_sns_topic.SNSTopicLargeFilePart.arn}"
+#    sns_arn_l5  = "${aws_sns_topic.SNSTopicLargeFileRecomb.arn}"
+#  })
+#}
+
+# NOTE: Uncomment these lines if deploying Azure Example
+ resource "aws_secretsmanager_secret_version" "SecretsManagerSecret" {
+   secret_id = aws_secretsmanager_secret.SecretsManagerSecret.id
+   secret_string = jsonencode({
+     bloburl     = azurerm_storage_account.StorageAccount.primary_blob_endpoint
+     tenantid    = data.azurerm_client_config.current.tenant_id
+     appid       = azuread_application.AppRegistration.application_id
+     appsecret   = azuread_application_password.AppPassword.value
+     bucket_name = "${aws_s3_bucket.S3Bucket.bucket}"
+     isactive    = "True"
+     begindate   = var.BlobToS3SyncStartDate
+     sns_arn_l1  = "${aws_sns_topic.SNSTopicL1L2.arn}"
+     sns_arn_l2  = "${aws_sns_topic.SNSTopicL2L3.arn}"
+     sns_arn_l3  = "${aws_sns_topic.SNSTopicLargeFileInit.arn}"
+     sns_arn_l4  = "${aws_sns_topic.SNSTopicLargeFilePart.arn}"
+     sns_arn_l5  = "${aws_sns_topic.SNSTopicLargeFileRecomb.arn}"
+   })
+ }
+```
+
+2. Configure `terraform.tfvars`. Refer to descriptions in `variables-aws.tf` for help.
+
+3. Run `terraform apply` from the *AzureblobtoAmazonS3copy/TF* directory. 
+
 ---
 
 ## Cloud intelligence Dashboard for Azure
