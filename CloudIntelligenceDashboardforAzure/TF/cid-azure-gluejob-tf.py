@@ -19,7 +19,7 @@ ssm_client = boto3.client('ssm')
 var_account_type = "${var_account_type}"
 var_bucket = "${var_bucket}"
 var_date_format = "${var_date_format}"
-var_bulk_run = "${var_bulk_run}"
+var_bulk_run = ((ssm_client.get_parameter(Name="cidazure-var_bulk_run"))['Parameter']['Value'])
 var_error_folder = "${var_error_folder}"
 var_glue_database = "${var_glue_database}"
 var_glue_table = "${var_glue_table}"

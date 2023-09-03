@@ -148,7 +148,6 @@ resource "aws_s3_object" "cidazuregluepy" {
       var_account_type     = var.AccountType
       var_bucket           = aws_s3_bucket.S3Bucket.id
       var_date_format      = var.AzureDateFormat
-      var_bulk_run         = "true"
       var_error_folder     = "azureciderror"
       var_glue_database    = aws_glue_catalog_database.cidazure.name
       var_glue_table       = aws_glue_catalog_table.cidazure.name
@@ -185,7 +184,7 @@ resource "aws_glue_catalog_table" "cidazure" {
 
   partition_keys {
     name = "month"
-    type = "string"
+    type = "date"
   }
 
   storage_descriptor {
@@ -275,7 +274,7 @@ resource "aws_glue_trigger" "cidazure" {
   }
 }
 
-resource "aws_ssm_parameter" "cidazure" {
+resource "aws_ssm_parameter" "DashboardDeploy" {
   name        = format("%s%s%s%s", var.PrefixCode, "smp", var.EnvironmentCode, "-cidazure-deploy_dashboard_command")
   type        = "String"
   value       = "cid-cmd deploy --resources https://raw.githubusercontent.com/aws-samples/aws-data-pipelines-for-azure-storage/main/CloudIntelligenceDashboardforAzure/CFN/cid-azure-dashboard.yaml --customer ${var.PrefixCode} --environment ${var.EnvironmentCode} --athena-database ${aws_glue_catalog_database.cidazure.name} --share-method account --athena-workgroup ${aws_athena_workgroup.cidazure.name} --quicksight-datasource-id AWSCIDforAzure --source-table ${aws_glue_catalog_table.cidazure.name} --dashboard-id ${var.PrefixCode}-${var.EnvironmentCode}-azure-cost"
@@ -284,6 +283,22 @@ resource "aws_ssm_parameter" "cidazure" {
   tags = {
     Name  = format("%s%s%s%s", var.PrefixCode, "smp", var.EnvironmentCode, "-cidazure-deploy_dashboard_command")
     rtype = "data"
+  }
+}
+
+resource "aws_ssm_parameter" "varbulkrun" {
+  name        = "cidazure-var_bulk_run"
+  type        = "String"
+  value       = "true"
+  description = "Cloud Intelligence Dashboard for Azure parameter. Set to true (lowercase t) if this is the first data copy or you are reprocessing, otherwise false."
+
+  tags = {
+    Name  = format("%s%s%s%s", var.PrefixCode, "smp", var.EnvironmentCode, "-cidazure-var_bulk_run")
+    rtype = "data"
+  }
+  # Ensures the bulkrun parameter is not overwritten with subsequent applies
+  lifecycle {
+    ignore_changes = [ value ]
   }
 }
 
@@ -313,11 +328,11 @@ resource "aws_athena_workgroup" "cidazure" {
   }
 }
 
-# Generate Athena saved query. named query is for reference only and not used as part of automation
+### Generate Athena saved query. named query is for reference only and not used as part of automation
 resource "aws_athena_named_query" "cidazure" {
   name        = format("%s%s%s%s", var.PrefixCode, "atq", var.EnvironmentCode, "cidazure")
   description = "Cloud Intelligence Dashboard for Azure Athena Named Query"
   workgroup   = aws_athena_workgroup.cidazure.id
   database    = aws_glue_catalog_database.cidazure.name
-  query       = "CREATE OR REPLACE VIEW ${aws_glue_catalog_table.cidazure.name}_athena_view AS SELECT * FROM ${aws_glue_catalog_table.cidazure.name}"
+  query       = "CREATE OR REPLACE VIEW ${aws_glue_catalog_table.cidazure.name}_athena_view AS SELECT * FROM ${aws_glue_catalog_table.cidazure.name} WHERE month >= DATE(to_iso8601(current_date - interval '6' month))"
 }
