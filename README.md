@@ -63,9 +63,11 @@ For **Terraform** installation follow the instructions below.
  }
 ```
 
-2. Configure `terraform.tfvars`. Refer to descriptions in `variables-aws.tf` for help.
+4. Configure `terraform.tfvars`. Refer to descriptions in `variables-aws.tf` for help.
 
-3. Run `terraform apply` from the *AzureblobtoAmazonS3copy/TF* directory. 
+5. Modify *main-aws.tf* to include an appropriate profile or make changes to match your preferred deployment configuration.
+
+6. Run `terraform apply` from the *AzureblobtoAmazonS3copy/TF* directory. 
 
 ---
 
