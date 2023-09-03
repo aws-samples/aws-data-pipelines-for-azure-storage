@@ -11,11 +11,11 @@ Welcome! This repository contains two projects.
 
 Copy data from Azure blob storage to Amazon S3
 
-For AWS CloudFormation installation, follow instructions in the [How to copy data from Azure Blob Storage to Amazon S3 using code](https://aws-blogs-prod.amazon.com/modernizing-with-aws/azure-blob-to-amazon-s3/) blog post.
-
 ![Azure blob to Amazon S3 architecture](https://static.us-east-1.prod.workshops.aws/public/f68ceac7-ccda-4cf5-b04a-9873857b025a/static/images/azs3copy-midlevel-grey.png)
 
-For Terraform installation follow the instructions below.
+For AWS **CloudFormation** installation, follow instructions in the [How to copy data from Azure Blob Storage to Amazon S3 using code](https://aws-blogs-prod.amazon.com/modernizing-with-aws/azure-blob-to-amazon-s3/) blog post.
+
+For **Terraform** installation follow the instructions below.
 
 1. Download / Clone repository
 
@@ -75,7 +75,7 @@ View Microsoft Azure usage data in Amazon QuickSight.
 
 ![Cloud Intelligence Dashboard for Azure architecture](https://static.us-east-1.prod.workshops.aws/public/f68ceac7-ccda-4cf5-b04a-9873857b025a/static/images/cidazure-midlevel-grey.png)
 
-For installation, follow instructions in the [Cloud Intelligence Dashboard for Azure](https://catalog.workshops.aws/cidforazure) workshop.
+For Cloudformation or Terraform installation, follow instructions in the [Cloud Intelligence Dashboard for Azure](https://catalog.workshops.aws/cidforazure) workshop.
 
 ---
 
