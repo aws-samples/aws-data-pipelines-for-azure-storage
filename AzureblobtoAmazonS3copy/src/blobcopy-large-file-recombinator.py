@@ -1,75 +1,6 @@
 import json
 from boto3 import client as Client
 
-#<<<<<<< HEAD
-# def cloudwatch_printer(message: str, log_group='blob-to-s3-file-group', log_stream='blob-to-s3-file-stream'):
-#     """
-#     This function calls the CloudWatch API, creates a new log group and stream in case it doesn't exist and print into that stream a message.
-#     """
-#     cloudwatch_client = Client('logs')
-#     # Attemp to create log group and stream
-#     try:
-#         # Crating the log event
-#         cloudwatch_client.put_log_events(
-#             logGroupName=log_group,
-#             logStreamName=log_stream,
-#             logEvents=[
-#                 {
-#                     'timestamp': int(round(time.time() * 1000)),
-#                     'message': message
-#                 },
-#             ]
-#         )
-#     except cloudwatch_client.exceptions.ResourceNotFoundException as e:
-#         # If group doesn't exist: create group and stream
-#         if 'The specified log group does not exist' in str(e): 
-#             cloudwatch_client.create_log_group(logGroupName=log_group)
-#             cloudwatch_client.create_log_stream(logGroupName=log_group, logStreamName=log_stream)
-#         # If group exists but stream doesn't: create stream
-#         elif 'The specified log stream does not exist' in str(e):
-#             cloudwatch_client.create_log_stream(logGroupName=log_group, logStreamName=log_stream)
-#         # Create event
-#         cloudwatch_client.put_log_events(
-#             logGroupName=log_group,
-#             logStreamName=log_stream,
-#             logEvents=[
-#                 {
-#                     'timestamp': int(round(time.time() * 1000)),
-#                     'message': message
-#                 },
-#             ]
-#         )
-#     return 0
-# =======
-# def cloudwatch_printer(message: str, log_group='blob-to-s3-file-group', log_stream='blob-to-s3-file-stream'):
-#     """
-#     This function calls the CloudWatch API, creates a new log group and stream in case it doesn't exist and print into that stream a message.
-#     """
-#     cloudwatch_client = Client('logs')
-#     # Attemp to create log group and stream
-#     try:
-#         cloudwatch_client.create_log_group(logGroupName=log_group)
-#     except cloudwatch_client.exceptions.ResourceAlreadyExistsException:
-#         print(f'Failed to create group {log_group}: ResourceAlreadyExistsException')
-#     try:
-#         cloudwatch_client.create_log_stream(logGroupName=log_group, logStreamName=log_stream)
-#     except cloudwatch_client.exceptions.ResourceAlreadyExistsException:
-#         print(f'Failed to create stream {log_stream}: ResourceAlreadyExistsException')
-    
-#     # Crating the log event
-#     cloudwatch_client.put_log_events(
-#         logGroupName=log_group,
-#         logStreamName=log_stream,
-#         logEvents=[
-#             {
-#                 'timestamp': int(round(time.time() * 1000)),
-#                 'message': message
-#             },
-#         ]
-#     )
-#     return 0
->>>>>>> 49828b7 (Commented out future use code)
-
 # Function to combine downloaded parts
 def lambda_handler(event, context):
     response = event['Records'][0]['Sns'].get('Message','not found')
@@ -104,9 +35,6 @@ def lambda_handler(event, context):
             UploadId=mp_upload_id
     
         )
-    
-    print(f'INFO: {blobkey} succesfully uploaded to S3')
-
     return {
         'statusCode': 200,
         'body': json.dumps(response)
