@@ -6,11 +6,11 @@ resource "azurerm_resource_group" "ResourceGroup" {
   location = var.region_azure
 
   tags = {
-    rtype       = "scaffold"
-    codeblock   = "azs3copy-azure"
-    Customer    = var.OwnerTag
-    Environment = var.EnvironmentTag
     Provisioner = "Terraform"
+    Owner       = var.OwnerTag
+    Environment = var.EnvironmentTag
+    Solution    = "azs3copy"
+    rtype       = "scaffold"
   }
 }
 
@@ -68,11 +68,11 @@ resource "azurerm_storage_account" "StorageAccount" {
     }
   }
   tags = {
-    rtype       = "storage"
-    codeblock   = "azs3copy-azure"
-    Customer    = var.OwnerTag
-    Environment = var.EnvironmentTag
     Provisioner = "Terraform"
+    Owner       = var.OwnerTag
+    Environment = var.EnvironmentTag
+    Solution    = "azs3copy"
+    rtype       = "storage"
   }
 }
 
