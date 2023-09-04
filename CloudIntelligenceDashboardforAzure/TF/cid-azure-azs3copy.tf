@@ -1,9 +1,9 @@
-# This Terraform Template deploys the Azure Blob to Amazon S3 Copy Solution
+# This Terraform Template deploys the Cloud Intelligence Dashboard for Azure
 
 ### Create a Resource Group for Terraform deployed resources
 resource "aws_resourcegroups_group" "ResourceGroup" {
-  name        = format("%s%s%s%s", var.PrefixCode, "rgg", var.EnvironmentCode, "azs3copy")
-  description = "Azure Blob to Amazon S3 Copy resources"
+  name        = format("%s%s%s%s", var.PrefixCode, "rgg", var.EnvironmentCode, "cidazure")
+  description = "Cloud Intelligence Dashboard for Azure resources"
 
   resource_query {
     query = <<JSON
@@ -26,7 +26,7 @@ resource "aws_resourcegroups_group" "ResourceGroup" {
     },
     {
       "Key": "Solution",
-      "Values": ["azs3copy"]
+      "Values": ["cidazure"]
     }
   ]
 }
@@ -34,21 +34,21 @@ JSON
   }
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "rgg", var.EnvironmentCode, "azs3copy")
+    Name  = format("%s%s%s%s", var.PrefixCode, "rgg", var.EnvironmentCode, "cidazure")
     rtype = "scaffold"
   }
 }
 
-### Create Secrets Manager secret
+### Create Secrets Manager secret [Comment out for offline mode 1/6]
 resource "aws_secretsmanager_secret" "SecretsManagerSecret" {
-  name        = format("%s%s%s%s", var.PrefixCode, "sms", var.EnvironmentCode, "azs3copy")
-  description = "Azure Blob to Amazon S3 Copy Secrets"
+  name        = format("%s%s%s%s", var.PrefixCode, "sms", var.EnvironmentCode, "cidazure")
+  description = "Cloud Intelligence Dashboard for Azure Secrets"
   kms_key_id  = aws_kms_key.KMSKey.arn
   # Consider setting recovery_window_in_days to 7 in production
   recovery_window_in_days = 0
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "sms", var.EnvironmentCode, "azs3copy")
+    Name  = format("%s%s%s%s", var.PrefixCode, "sms", var.EnvironmentCode, "cidazure")
     rtype = "security"
   }
 }
@@ -57,7 +57,7 @@ resource "aws_secretsmanager_secret" "SecretsManagerSecret" {
 resource "aws_secretsmanager_secret_version" "SecretsManagerSecret" {
   secret_id = aws_secretsmanager_secret.SecretsManagerSecret.id
   secret_string = jsonencode({
-    bloburl     = var.AzureBlobURL 
+    bloburl     = var.AzureBlobURL
     tenantid    = var.AzureTenantID
     appid       = var.AzureApplicationID
     appsecret   = var.AzureSecretKey
@@ -94,18 +94,18 @@ resource "aws_secretsmanager_secret_version" "SecretsManagerSecret" {
 ### Create KMS key
 resource "aws_kms_key" "KMSKey" {
   deletion_window_in_days = 7
-  description             = "Azure Blob to Amazon S3 Copy KMS Key"
+  description             = "Cloud Intelligence Dashboard for Azure KMS Key"
   enable_key_rotation     = true
   policy                  = data.aws_iam_policy_document.azurecidkms.json
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "kms", var.EnvironmentCode, "azs3copy")
+    Name  = format("%s%s%s%s", var.PrefixCode, "kms", var.EnvironmentCode, "cidazure")
     rtype = "security"
   }
 }
 
 resource "aws_kms_alias" "KMSKeyAlias" {
-  name          = format("%s%s%s%s%s", "alias/", var.PrefixCode, "kms", var.EnvironmentCode, "azs3copy")
+  name          = format("%s%s%s%s%s", "alias/", var.PrefixCode, "kms", var.EnvironmentCode, "cidazure")
   target_key_id = aws_kms_key.KMSKey.key_id
 }
 
@@ -160,13 +160,13 @@ data "aws_iam_policy_document" "azurecidkms" {
 ### Create S3 bucket to receive data
 resource "aws_s3_bucket" "S3Bucket" {
   # Add static bucket name if required
-  # bucket      = format("%s%s%s%s", var.PrefixCode, "sss", var.EnvironmentCode, "azs3copy")
-  bucket_prefix = format("%s%s%s%s", var.PrefixCode, "sss", var.EnvironmentCode, "azs3copy")
+  # bucket      = format("%s%s%s%s", var.PrefixCode, "sss", var.EnvironmentCode, "cidazure")
+  bucket_prefix = format("%s%s%s%s", var.PrefixCode, "sss", var.EnvironmentCode, "cidazure")
   # Consider changing force_destroy to 'false' in production environments
   force_destroy = true
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "sss", var.EnvironmentCode, "azs3copy"),
+    Name  = format("%s%s%s%s", var.PrefixCode, "sss", var.EnvironmentCode, "cidazure"),
     rtype = "storage"
   }
 }
@@ -252,10 +252,10 @@ resource "aws_s3_bucket_public_access_block" "S3Bucket" {
   restrict_public_buckets = true
 }
 
-# Create IAM configuration used throughout project
+### Create IAM configuration used throughout project [Comment out for offline mode 2/6]
 resource "aws_iam_role" "LambdaIAM" {
-  name        = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "azs3copylambda")
-  description = "Azure Blob to Amazon S3 Copy IAM role for Lambda Functions"
+  name        = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "cidazurelambda")
+  description = "Cloud Intelligence Dashboard for Azure IAM role for Lambda Functions"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -270,14 +270,14 @@ resource "aws_iam_role" "LambdaIAM" {
   })
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "azs3copylambda")
+    Name  = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "cidazurelambda")
     rtype = "security"
   }
 }
 
 resource "aws_iam_role_policy" "LambdaIAM" {
-  name = format("%s%s%s%s", var.PrefixCode, "irp", var.EnvironmentCode, "azs3copylambdas3")
-  role = aws_iam_role.LambdaIAM.id
+  name  = format("%s%s%s%s", var.PrefixCode, "irp", var.EnvironmentCode, "cidazurelambdas3")
+  role  = aws_iam_role.LambdaIAM.id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -352,8 +352,8 @@ resource "aws_iam_role_policy" "LambdaIAM" {
 }
 
 resource "aws_iam_role" "EventBridgeIAM" {
-  name        = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "azs3copyeventbrg")
-  description = "IAM role for Azure Blob to Amazon S3 Copy EventBridge Schedule"
+  name        = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "cidazureeventbrg")
+  description = "Cloud Intelligence Dashboard IAM role for EventBridge Schedule"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -368,14 +368,14 @@ resource "aws_iam_role" "EventBridgeIAM" {
   })
 
   tags = {
-    Name  = format("%s%s%s%s", var.Region, "iar", var.EnvironmentCode, "azs3copyeventbrg")
+    Name  = format("%s%s%s%s", var.Region, "iar", var.EnvironmentCode, "cidazureeventbrg")
     rtype = "security"
   }
 }
 
 resource "aws_iam_role_policy" "EventBridgeIAM" {
-  name = format("%s%s%s%s", var.PrefixCode, "irp", var.EnvironmentCode, "azs3copyeventbrg")
-  role = aws_iam_role.EventBridgeIAM.id
+  name  = format("%s%s%s%s", var.PrefixCode, "irp", var.EnvironmentCode, "cidazureeventbrg")
+  role  = aws_iam_role.EventBridgeIAM.id
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -392,7 +392,7 @@ resource "aws_iam_role_policy" "EventBridgeIAM" {
   })
 }
 
-### Create Lambda Functions
+### Create Lambda Functions [Comment out for offline mode 3/6]
 resource "aws_lambda_layer_version" "azure-arm-identity" {
   filename                 = "../CFN/azure-arm-identity.zip"
   layer_name               = "azure-arm-identity"
@@ -408,9 +408,9 @@ resource "aws_lambda_layer_version" "azure-arm-storage" {
 }
 
 resource "aws_lambda_function" "LambdaFunction01" {
-  filename                       = "../CFN/azs3copy-lambda01.zip"
-  function_name                  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "azs3copylambda01")
-  description                    = "Azure Blob to Amazon S3 Copy Lambda01 (blobcopy-launch-qualification)"
+  filename                       = "../CFN/cid-azure-lambda01.zip"
+  function_name                  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda01")
+  description                    = "Cloud Intelligence Dashboard for Azure Lambda01 (blobcopy-launch-qualification)"
   architectures                  = ["arm64"]
   handler                        = "blobcopy-launch-qualification.lambda_handler"
   kms_key_arn                    = aws_kms_key.KMSKey.arn
@@ -440,15 +440,15 @@ resource "aws_lambda_function" "LambdaFunction01" {
   }
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "azs3copylambda01")
+    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda01")
     rtype = "compute"
   }
 }
 
 resource "aws_lambda_function" "LambdaFunction02" {
-  filename                       = "../CFN/azs3copy-lambda02.zip"
-  function_name                  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "azs3copylambda02")
-  description                    = "Azure Blob to Amazon S3 Copy Lambda02 (blobcopy-find-blobs)"
+  filename                       = "../CFN/cid-azure-lambda02.zip"
+  function_name                  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda02")
+  description                    = "Cloud Intelligence Dashboard for Azure Lambda02 (blobcopy-find-blobs)"
   architectures                  = ["arm64"]
   handler                        = "blobcopy-find-blobs.lambda_handler"
   kms_key_arn                    = aws_kms_key.KMSKey.arn
@@ -470,15 +470,15 @@ resource "aws_lambda_function" "LambdaFunction02" {
   }
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "azs3copylambda02")
+    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda02")
     rtype = "compute"
   }
 }
 
 resource "aws_lambda_function" "LambdaFunction03" {
-  filename      = "../CFN/azs3copy-lambda03.zip"
-  function_name = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "azs3copylambda03")
-  description   = "Azure Blob to Amazon S3 Copy Lambda03 (blobcopy-download)"
+  filename      = "../CFN/cid-azure-lambda03.zip"
+  function_name = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda03")
+  description   = "Cloud Intelligence Dashboard for Azure Lambda03 (blobcopy-download)"
   architectures = ["arm64"]
   handler       = "blobcopy-download.lambda_handler"
   kms_key_arn   = aws_kms_key.KMSKey.arn
@@ -499,15 +499,15 @@ resource "aws_lambda_function" "LambdaFunction03" {
   }
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "azs3copylambda03")
+    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda03")
     rtype = "compute"
   }
 }
 
 resource "aws_lambda_function" "LambdaFunction04" {
-  filename      = "../CFN/azs3copy-lambda04.zip"
-  function_name = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "azs3copylambda04")
-  description   = "Azure Blob to Amazon S3 Copy Lambda04 (blobcopy-largefile-initializer)"
+  filename      = "../CFN/cid-azure-lambda04.zip"
+  function_name = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda04")
+  description   = "Cloud Intelligence Dashboard for Azure Lambda04 (blobcopy-largefile-initializer)"
   architectures = ["arm64"]
   handler       = "blobcopy-large-file-initiator.lambda_handler"
   kms_key_arn   = aws_kms_key.KMSKey.arn
@@ -527,15 +527,15 @@ resource "aws_lambda_function" "LambdaFunction04" {
   }
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "azs3copylambda04")
+    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda04")
     rtype = "compute"
   }
 }
 
 resource "aws_lambda_function" "LambdaFunction05" {
-  filename      = "../CFN/azs3copy-lambda05.zip"
-  function_name = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "azs3copylambda05")
-  description   = "Azure Blob to Amazon S3 Copy Lambda05 (blobcopy-largefile-parter)"
+  filename      = "../CFN/cid-azure-lambda05.zip"
+  function_name = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda05")
+  description   = "Cloud Intelligence Dashboard for Azure Lambda05 (blobcopy-largefile-parter)"
   architectures = ["arm64"]
   handler       = "blobcopy-large-file-part.lambda_handler"
   kms_key_arn   = aws_kms_key.KMSKey.arn
@@ -556,15 +556,15 @@ resource "aws_lambda_function" "LambdaFunction05" {
   }
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "azs3copylambda05")
+    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda05")
     rtype = "compute"
   }
 }
 
 resource "aws_lambda_function" "LambdaFunction06" {
-  filename      = "../CFN/azs3copy-lambda06.zip"
-  function_name = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "azs3copylambda06")
-  description   = "Azure Blob to Amazon S3 Copy Lambda06 (blobcopy-largefile-recombinater)"
+  filename      = "../CFN/cid-azure-lambda06.zip"
+  function_name = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda06")
+  description   = "Cloud Intelligence Dashboard for Azure Lambda06 (blobcopy-largefile-recombinater)"
   architectures = ["arm64"]
   handler       = "blobcopy-large-file-recombinator.lambda_handler"
   kms_key_arn   = aws_kms_key.KMSKey.arn
@@ -584,68 +584,68 @@ resource "aws_lambda_function" "LambdaFunction06" {
   }
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "azs3copylambda05")
+    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda05")
     rtype = "compute"
   }
 }
 
-### Create SNS queues
+### Create SNS queues [Comment out for offline mode 4/6]
 resource "aws_sns_topic" "SNSTopicL1L2" {
-  name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyL1_to_L2")
+  name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureL1_to_L2")
   kms_master_key_id = "alias/aws/sns"
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyL1_to_L2")
+    Name  = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureL1_to_L2")
     rtype = "messaging"
   }
 }
 
 resource "aws_sns_topic" "SNSTopicL2L3" {
-  name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyL2_to_L3")
+  name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureL2_to_L3")
   kms_master_key_id = "alias/aws/sns"
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyL2_to_L3")
+    Name  = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureL2_to_L3")
     rtype = "messaging"
   }
 }
 
 resource "aws_sns_topic" "SNSTopicLargeFileInit" {
-  name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyLargeFileInit")
+  name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureLargeFileInit")
   kms_master_key_id = "alias/aws/sns"
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyLargeFileInit")
+    Name  = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureLargeFileInit")
     rtype = "messaging"
   }
 }
 
 resource "aws_sns_topic" "SNSTopicLargeFilePart" {
-  name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyLargeFilePart")
+  name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureLargeFilePart")
   kms_master_key_id = "alias/aws/sns"
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyLargeFilePart")
+    Name  = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureLargeFilePart")
     rtype = "messaging"
   }
 }
 
 resource "aws_sns_topic" "SNSTopicLargeFileRecomb" {
-  name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyLargeFileRecomb")
+  name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureLargeFileRecomb")
   kms_master_key_id = "alias/aws/sns"
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyLargeFileRecomb")
+    Name  = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureLargeFileRecomb")
     rtype = "messaging"
   }
 }
 
 resource "aws_sns_topic" "SNSTopicDeadLetterQueue" {
-  name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyDLQ")
+  name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureDLQ")
   kms_master_key_id = "alias/aws/sns"
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "azs3copyDLQ")
+    Name  = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureDLQ")
     rtype = "messaging"
   }
 }
@@ -720,23 +720,23 @@ resource "aws_lambda_permission" "LambdaPermissionLargeFileRecomb" {
   source_arn    = aws_sns_topic.SNSTopicLargeFileRecomb.arn
 }
 
-### Create EventBridge schedule
+### Create EventBridge schedule [Comment out for offline mode 5/6]
 resource "aws_cloudwatch_event_rule" "ScheduledRule" {
-  name                = format("%s%s%s%s", var.PrefixCode, "evr", var.EnvironmentCode, "azs3copy")
-  description         = "Azure Blob to Amazon S3 Copy Scheduled pull from Azure blob storage"
+  name                = format("%s%s%s%s", var.PrefixCode, "evr", var.EnvironmentCode, "cidazure")
+  description         = "Cloud Intelligence Dashboard for Azure Scheduled pull from Azure blob storage"
   is_enabled          = true
   role_arn            = aws_iam_role.EventBridgeIAM.arn
   schedule_expression = var.AzureCopySchedule
 
   tags = {
-    Name  = format("%s%s%s%s", var.PrefixCode, "evr", var.EnvironmentCode, "azs3copy")
+    Name  = format("%s%s%s%s", var.PrefixCode, "evr", var.EnvironmentCode, "cidazure")
     rtype = "messaging"
   }
 }
 
 resource "aws_cloudwatch_event_target" "ScheduledRule" {
-  rule = aws_cloudwatch_event_rule.ScheduledRule.name
-  arn  = aws_lambda_function.LambdaFunction01.arn
+  rule  = aws_cloudwatch_event_rule.ScheduledRule.name
+  arn   = aws_lambda_function.LambdaFunction01.arn
 }
 
 resource "aws_lambda_permission" "LambdaPermissionScheduledRule" {
@@ -747,9 +747,9 @@ resource "aws_lambda_permission" "LambdaPermissionScheduledRule" {
   source_arn    = aws_cloudwatch_event_rule.ScheduledRule.arn
 }
 
-### Cloudwatch Dashboard
+### Cloudwatch Dashboard [Comment out for offline mode 6/6]
 resource "aws_cloudwatch_dashboard" "CloudwatchDashboard" {
-  dashboard_name = format("%s%s%s%s", var.PrefixCode, "cwd", var.EnvironmentCode, "azs3copy")
+  dashboard_name = format("%s%s%s%s", var.PrefixCode, "cwd", var.EnvironmentCode, "cidazure")
   dashboard_body = <<EOF
   {
     "widgets": [

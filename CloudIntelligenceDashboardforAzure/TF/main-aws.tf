@@ -11,10 +11,10 @@ provider "aws" {
   region  = var.Region
   default_tags {
     tags = {
-      Provisioner = "Terraform"
-      Owner       = var.OwnerTag
+      Customer    = var.OwnerTag
       Environment = var.EnvironmentTag
-      Solution    = "azs3copy"
+      Provisioner = "Terraform"
+      Solution    = "cidazure"
     }
   }
 }

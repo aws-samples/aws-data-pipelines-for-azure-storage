@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: This CloudFormation Template deploys the Azure Blob to Amazon S3 Copy Solution
 
-# Cloudformation Stack details menu
+### Cloudformation Stack details menu
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -32,7 +32,7 @@ Metadata:
           - MaxPartitionsPerFile
           - UseFullFilePath
 
-# Common Parameters
+### Common Parameters
 Parameters:
   SourceBucket:
     Description: The new S3 bucket created which contains Azure Blob to Amazon S3 Copy installation/source files
@@ -55,7 +55,7 @@ Parameters:
     Default: Development
     Description: Environment tag value. All resources are created with an 'Environment' tag and the value you set here. e.g. production, staging, development
 
-  # Microsoft Azure Parameters
+  ### Microsoft Azure Parameters
   AzureBlobURL:
     Description: Microsoft Azure Primary Blob endpoint URL
     Default: https://<mystorageaccount>.blob.core.windows.net/
@@ -101,11 +101,7 @@ Parameters:
     Type: String
 
 Resources:
-  ######################################################################################################
-  #                                         Infrastructure Stack                                       #
-  ######################################################################################################
-
-  # Create a Resource Group for CloudFormation deployed resources
+  ### Create a Resource Group for CloudFormation deployed resources
   ResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
@@ -143,7 +139,7 @@ Resources:
         - Key: Name
           Value: !Sub ${PrefixCode}rgg${EnvironmentCode}azs3copy
 
-  # Create Secrets Manager secret
+  ### Create Secrets Manager secret
   SecretsManagerSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -179,7 +175,7 @@ Resources:
         - Key: Name
           Value: !Sub ${PrefixCode}sms${EnvironmentCode}azs3copy
 
-  # Create KMS key
+  ### Create KMS key
   KMSKey:
     Type: AWS::KMS::Key
     Properties:
@@ -234,7 +230,7 @@ Resources:
       AliasName: !Sub alias/${PrefixCode}kms${EnvironmentCode}azs3copy
       TargetKeyId: !Ref KMSKey
 
-  # Create S3 bucket to receive data
+  ### Create S3 bucket to receive data
   S3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete # Change as appropriate
@@ -295,7 +291,7 @@ Resources:
               NumericLessThan:
                 s3:TlsVersion: 1.2
 
-  # Create IAM configuration used throughout stack
+  ### Create IAM configuration used throughout stack
   LambdaIAM:
     Type: AWS::IAM::Role
     Properties:
@@ -409,12 +405,8 @@ Resources:
           Value: security
         - Key: Name
           Value: !Sub ${PrefixCode}iar${EnvironmentCode}azs3copyeventbrg
-
-  ######################################################################################################
-  #                                         Blob Copy Stack                                            #
-  ######################################################################################################
-
-  # Create Lambda Functions
+          
+  ### Create Lambda Functions
   LambdaLayerVersionIdentity:
     Type: AWS::Lambda::LayerVersion
     Properties:
@@ -664,7 +656,7 @@ Resources:
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}azs3copylambda06
 
-  # Create SNS queues
+  ### Create SNS queues
   SNSTopicL1L2:
     Type: AWS::SNS::Topic
     Properties:
@@ -850,7 +842,7 @@ Resources:
       Principal: sns.amazonaws.com
       SourceArn: !Ref SNSTopicLargeFileRecomb
 
-  # Create EventBridge schedule
+  ### Create EventBridge schedule
   ScheduledRule:
     Type: AWS::Events::Rule
     Properties:
@@ -870,7 +862,7 @@ Resources:
       Principal: "events.amazonaws.com"
       SourceArn: !GetAtt ScheduledRule.Arn
 
-  # Cloudwatch Dashboard
+  ### Cloudwatch Dashboard
   CloudwatchDashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:

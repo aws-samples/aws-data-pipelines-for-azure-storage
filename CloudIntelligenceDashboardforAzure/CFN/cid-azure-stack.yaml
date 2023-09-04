@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: This CloudFormation Template deploys the AWS Cloud Intelligence Dashboard for Azure
+Description: This CloudFormation Template deploys the Cloud Intelligence Dashboard for Azure
 
 ### Cloudformation Stack details menu
 Metadata:
@@ -49,12 +49,12 @@ Parameters:
       - "manual"
   SourceBucket:
     Type: String
-    Description: The new S3 bucket created which contains AWS Cloud Intelligence Dashboard for Azure installation/source files
+    Description: The new S3 bucket created which contains Cloud Intelligence Dashboard for Azure installation/source files
     Default: bucketname
   PrefixCode:
     Type: String
     Description: Prefix used to name all resources created by this CloudFormation template. Cannot be 'aws'. e.g. department name, business unit, project name
-    Default: fin
+    Default: cid
   EnvironmentCode:
     Type: String
     Description: Code used to name all resources created by this CloudFormation template e.g. 'pd' for production
@@ -71,7 +71,7 @@ Parameters:
   ### Microsoft Azure Parameters
   AccountType:
     Type: String
-    Description: Microsoft Azure account type. Choose carefully, selecting the incorrect account type will cause errors
+    Description: Microsoft Azure account type.
     Default: MCA
     AllowedValues:
       - MCA
@@ -143,16 +143,12 @@ Conditions:
   Deploy: !Equals [!Ref DeploymentType, "automatic"]
 
 Resources:
-  ######################################################################################################
-  #                                         Infrastructure Stack                                       #
-  ######################################################################################################
-
   ### Create a Resource Group for CloudFormation resources
   ResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
       Name: !Sub ${PrefixCode}rgg${EnvironmentCode}cidazure
-      Description: AWS Cloud Intelligence Dashboard for Azure resources
+      Description: Cloud Intelligence Dashboard for Azure resources
       ResourceQuery:
         Type: TAG_FILTERS_1_0
         Query:
@@ -190,7 +186,7 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: !Sub ${PrefixCode}sms${EnvironmentCode}cidazure
-      Description: AWS Cloud Intelligence Dashboard Secrets
+      Description: Cloud Intelligence Dashboard Secrets
       KmsKeyId: !GetAtt KMSKey.Arn
       SecretString: !Sub |
         {
@@ -226,7 +222,7 @@ Resources:
   KMSKey:
     Type: AWS::KMS::Key
     Properties:
-      Description: AWS Cloud Intelligence Dashboard for Azure KMS Key
+      Description: Cloud Intelligence Dashboard for Azure KMS Key
       PendingWindowInDays: 7
       EnableKeyRotation: true
       KeyPolicy:
@@ -277,7 +273,7 @@ Resources:
       AliasName: !Sub alias/${PrefixCode}kms${EnvironmentCode}cidazure
       TargetKeyId: !Ref KMSKey
 
-  ### Create S3 bucket to receive Azure Billing data
+  ### Create S3 bucket to receive data
   S3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete # Change as appropriate
@@ -342,7 +338,7 @@ Resources:
   GlueIAM:
     Type: AWS::IAM::Role
     Properties:
-      Description: AWS Cloud Intelligence Dashboard for Azure IAM role for Glue
+      Description: Cloud Intelligence Dashboard for Azure IAM role for Glue
       RoleName: !Sub ${PrefixCode}iar${EnvironmentCode}cidazureglue
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -421,7 +417,7 @@ Resources:
   LambdaIAM:
     Type: AWS::IAM::Role
     Properties:
-      Description: AWS Cloud Intelligence Dashboard for Azure IAM role for Lambda
+      Description: Cloud Intelligence Dashboard for Azure IAM role for Lambda
       RoleName: !Sub ${PrefixCode}iar${EnvironmentCode}cidazurelambda
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -499,7 +495,7 @@ Resources:
   EventBridgeIAM:
     Type: AWS::IAM::Role
     Properties:
-      Description: IAM role for Azure Cloud Intelligence Dashboard EventBridge Schedule
+      Description: Cloud Intelligence Dashboard IAM role for EventBridge Schedule
       RoleName: !Sub ${PrefixCode}iar${EnvironmentCode}cidazureeventbrg
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -649,7 +645,7 @@ Resources:
   GlueTrigger:
     Type: AWS::Glue::Trigger
     Properties:
-      Description: AWS Cloud Intelligence Dashboard for Azure Glue ETL job schedule
+      Description: Cloud Intelligence Dashboard for Azure Glue ETL job schedule
       Name: !Sub ${PrefixCode}glt${EnvironmentCode}cidazure
       Actions:
         - JobName: !Ref GlueJob
@@ -672,7 +668,7 @@ Resources:
       Name: cidazure-var_raw_path
       Type: String
       Value: !Sub s3://${S3Bucket}/azurecidraw/
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. S3 path to the raw folder where incoming CSV files are created
+      Description: Cloud Intelligence Dashboard for Azure parameter. S3 path to the raw folder where incoming CSV files are created
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -686,7 +682,7 @@ Resources:
       Name: cidazure-var_parquet_path
       Type: String
       Value: !Sub s3://${S3Bucket}/azurecidparquet/
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. S3 path to the parquet folder where parquet files are created by the Glue job
+      Description: Cloud Intelligence Dashboard for Azure parameter. S3 path to the parquet folder where parquet files are created by the Glue job
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -700,7 +696,7 @@ Resources:
       Name: cidazure-var_processed_path
       Type: String
       Value: !Sub s3://${S3Bucket}/azurecidprocessed/
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. S3 path to the processed folder where CSV files are moved by Glue after processing
+      Description: Cloud Intelligence Dashboard for Azure parameter. S3 path to the processed folder where CSV files are moved by Glue after processing
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -714,7 +710,7 @@ Resources:
       Name: cidazure-var_glue_database
       Type: String
       Value: !Ref GlueDatabase
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Glue database name
+      Description: Cloud Intelligence Dashboard for Azure parameter. Glue database name
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -728,7 +724,7 @@ Resources:
       Name: cidazure-var_glue_table
       Type: String
       Value: !Ref GlueTable
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Glue table name
+      Description: Cloud Intelligence Dashboard for Azure parameter. Glue table name
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -742,7 +738,7 @@ Resources:
       Name: cidazure-var_bucket
       Type: String
       Value: !Ref S3Bucket
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. S3 bucket name where Azure data is stored and processed
+      Description: Cloud Intelligence Dashboard for Azure parameter. S3 bucket name where Azure data is stored and processed
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -756,7 +752,7 @@ Resources:
       Name: cidazure-var_raw_folder
       Type: String
       Value: azurecidraw
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Name of the S3 folder containing incoming CSV files. This should be left as azurecidraw
+      Description: Cloud Intelligence Dashboard for Azure parameter. Name of the S3 folder containing incoming CSV files. This should be left as azurecidraw
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -770,7 +766,7 @@ Resources:
       Name: cidazure-var_processed_folder
       Type: String
       Value: azurecidprocessed
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Name of the S3 folder to place CSV files after processing. This should be left as azurecidprocessed
+      Description: Cloud Intelligence Dashboard for Azure parameter. Name of the S3 folder to place CSV files after processing. This should be left as azurecidprocessed
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -784,7 +780,7 @@ Resources:
       Name: cidazure-var_parquet_folder
       Type: String
       Value: azurecidparquet
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Name of the S3 folder to place parquet files. This should be left as azurecidparquet
+      Description: Cloud Intelligence Dashboard for Azure parameter. Name of the S3 folder to place parquet files. This should be left as azurecidparquet
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -798,7 +794,7 @@ Resources:
       Name: cidazure-var_date_format
       Type: String
       Value: !Sub ${AzureDateFormat}
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Date format used within Azure cost exports
+      Description: Cloud Intelligence Dashboard for Azure parameter. Date format used within Azure cost exports
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -812,7 +808,7 @@ Resources:
       Name: cidazure-var_folderpath
       Type: String
       Value: !Sub ${AzureFolderPath}
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter Glue job. S3 Folder structure for incoming CSV files. E.g directory/*
+      Description: Cloud Intelligence Dashboard for Azure parameter Glue job. S3 Folder structure for incoming CSV files. E.g directory/*
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -826,7 +822,7 @@ Resources:
       Name: cidazure-var_azuretags
       Type: String
       Value: !Sub ${AzureTags}
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Azure tags to be exposed to QuickSight
+      Description: Cloud Intelligence Dashboard for Azure parameter. Azure tags to be exposed to QuickSight
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -840,7 +836,7 @@ Resources:
       Name: cidazure-var_account_type
       Type: String
       Value: !Sub ${AccountType}
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Microsoft account type used to determine export data schema
+      Description: Cloud Intelligence Dashboard for Azure parameter. Microsoft account type used to determine export data schema
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -854,7 +850,7 @@ Resources:
       Name: cidazure-var_bulk_run
       Type: String
       Value: !If [Deploy, "true", "false"]
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Set to true (lowercase t) if this is the first data copy or you are reprocessing, otherwise false.
+      Description: Cloud Intelligence Dashboard for Azure parameter. Set to true (lowercase t) if this is the first data copy or you are reprocessing, otherwise false.
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -884,7 +880,7 @@ Resources:
       Name: cidazure-deploy_dashboard_command
       Type: String
       Value: !Sub cid-cmd deploy  --resources 'https://raw.githubusercontent.com/aws-samples/aws-data-pipelines-for-azure-storage/main/CloudIntelligenceDashboardforAzure/CFN/cid-azure-dashboard.yaml' --customer '${PrefixCode}' --environment '${EnvironmentCode}' --athena-database '${GlueDatabase}'  --share-method 'account' --athena-workgroup '${AthenaWorkgroup}' --quicksight-datasource-id AWSCIDforAzure --source-table '${GlueTable}' --dashboard-id '${PrefixCode}-${EnvironmentCode}-azure-cost'
-      Description: AWS Cloud Intelligence Dashboard for Azure parameter. Command used to deploy dashboard
+      Description: Cloud Intelligence Dashboard for Azure parameter. Command used to deploy dashboard
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -897,7 +893,7 @@ Resources:
   AthenaWorkgroup:
     Type: AWS::Athena::WorkGroup
     Properties:
-      Description: AWS Cloud Intelligence Dashboard for Azure Athena Workgroup
+      Description: Cloud Intelligence Dashboard for Azure Athena Workgroup
       Name: !Sub ${PrefixCode}atw${EnvironmentCode}cidazure
       RecursiveDeleteOption: true
       WorkGroupConfiguration:
@@ -927,20 +923,16 @@ Resources:
     Type: AWS::Athena::NamedQuery
     Properties:
       Database: !Ref GlueDatabase
-      Description: AWS Cloud Intelligence Dashboard for Azure Athena Named Query
+      Description: Cloud Intelligence Dashboard for Azure Athena Named Query
       Name: !Sub ${PrefixCode}atq${EnvironmentCode}cidazure
       QueryString: !Sub CREATE OR REPLACE VIEW ${GlueTable}_athena_view AS SELECT * FROM ${GlueTable} WHERE month >= DATE(to_iso8601(current_date - interval '6' month))
       WorkGroup: !Ref AthenaWorkgroup
-
-  ######################################################################################################
-  #                                         Blob Copy Stack                                            #
-  ######################################################################################################
 
   ### Create Lambda Functions
   LambdaLayerVersionIdentity:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      Description: AWS Cloud Intelligence Dashboard Azure identity layer
+      Description: Cloud Intelligence Dashboard Azure identity layer
       CompatibleRuntimes:
         - python3.9
       LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-identity
@@ -951,7 +943,7 @@ Resources:
   LambdaLayerVersionStorage:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      Description: AWS Cloud Intelligence Dashboard Azure storage layer
+      Description: Cloud Intelligence Dashboard Azure storage layer
       CompatibleRuntimes:
         - python3.9
       LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-storage
@@ -962,7 +954,7 @@ Resources:
   LambdaFunction01:
     Type: AWS::Lambda::Function
     Properties:
-      Description: AWS Cloud Intelligence Dashboard Lambda01 (blobcopy-launch-qualification)
+      Description: Cloud Intelligence Dashboard Lambda01 (blobcopy-launch-qualification)
       Environment:
         Variables:
           secret: !Ref SecretsManagerSecret
@@ -1006,7 +998,7 @@ Resources:
   LambdaFunction02:
     Type: AWS::Lambda::Function
     Properties:
-      Description: AWS Cloud Intelligence Dashboard Lambda02 (blobcopy-find-blobs)
+      Description: Cloud Intelligence Dashboard Lambda02 (blobcopy-find-blobs)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda02
       Handler: blobcopy-find-blobs.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
@@ -1046,7 +1038,7 @@ Resources:
   LambdaFunction03:
     Type: AWS::Lambda::Function
     Properties:
-      Description: AWS Cloud Intelligence Dashboard Lambda03 (blobcopy-download)
+      Description: Cloud Intelligence Dashboard Lambda03 (blobcopy-download)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda03
       Handler: blobcopy-download.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
@@ -1085,7 +1077,7 @@ Resources:
   LambdaFunction04:
     Type: AWS::Lambda::Function
     Properties:
-      Description: AWS Cloud Intelligence Dashboard Lambda04 (blobcopy-largefile-initializer)
+      Description: Cloud Intelligence Dashboard Lambda04 (blobcopy-largefile-initializer)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda04
       Handler: blobcopy-large-file-initiator.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
@@ -1121,7 +1113,7 @@ Resources:
   LambdaFunction05:
     Type: AWS::Lambda::Function
     Properties:
-      Description: AWS Cloud Intelligence Dashboard Lambda05 (blobcopy-largefile-parter)
+      Description: Cloud Intelligence Dashboard Lambda05 (blobcopy-largefile-parter)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda05
       Handler: blobcopy-large-file-part.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
@@ -1160,7 +1152,7 @@ Resources:
   LambdaFunction06:
     Type: AWS::Lambda::Function
     Properties:
-      Description: AWS Cloud Intelligence Dashboard Lambda06 (blobcopy-largefile-recombinater)
+      Description: Cloud Intelligence Dashboard Lambda06 (blobcopy-largefile-recombinater)
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda06
       Handler: blobcopy-large-file-recombinator.lambda_handler
       KmsKeyArn: !GetAtt KMSKey.Arn
@@ -1400,7 +1392,7 @@ Resources:
   ScheduledRule:
     Type: AWS::Events::Rule
     Properties:
-      Description: AWS Cloud Intelligence Dashboard Scheduled pull from Azure blob storage
+      Description: Cloud Intelligence Dashboard Scheduled pull from Azure blob storage
       Name: !Sub ${PrefixCode}evr${EnvironmentCode}cidazure
       RoleArn: !GetAtt EventBridgeIAM.Arn
       ScheduleExpression: !Sub ${AzureCopySchedule}

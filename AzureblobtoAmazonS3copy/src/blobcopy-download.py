@@ -1,25 +1,6 @@
-"""
-MIT No Attribution
-
-Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""
 import json
 import os
 import re
-import time
 from urllib import parse
 from boto3 import client as Client
 from azure.identity import ClientSecretCredential
@@ -91,17 +72,7 @@ def lambda_handler(event, context):
     # Blob_client to directly retrieves the blob from the specified container
     blob_client = blob_service_client.get_blob_client(container=containerName, blob=blobName)
     os.chdir('/tmp')
-    
-    # Preparing the message for the log event
-    start_t = time.time()
-    start_t_datetime = datetime.fromtimestamp(start_t, tz=timezone.utc)
-    message = f"""
-               INFO: started file upload to S3\n
-               blobname: {blobName}\n
-               destination bucket: {bucket_name}\n
-               start time: {start_t_datetime}\n
-               total file size: {blobSize}\n
-               """
+
     # Upload the file to the user specified S3 bucket
     with open(fileName, "wb") as my_blob:
         download_stream = blob_client.download_blob()
