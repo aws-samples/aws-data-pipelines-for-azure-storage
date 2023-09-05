@@ -11,7 +11,7 @@ Welcome! This repository contains two projects.
 
 Copy data from Azure blob storage to Amazon S3. For an introduction refer to this [blog post](https://aws-blogs-prod.amazon.com/modernizing-with-aws/azure-blob-to-amazon-s3/).
 
-![Azure blob to Amazon S3 architecture](https://static.us-east-1.prod.workshops.aws/public/f68ceac7-ccda-4cf5-b04a-9873857b025a/static/images/azs3copy-midlevel-grey.png)
+![Azure blob to Amazon S3 architecture](https://static.us-east-1.prod.workshops.aws/public/ad089616-77dc-4543-8ae6-786b852455d2/static/images/azs3copy-midlevel-grey.png)
 
 To deploy using AWS **CloudFormation**, follow instructions in the [How to copy data from Azure Blob Storage to Amazon S3 using code](https://aws-blogs-prod.amazon.com/modernizing-with-aws/azure-blob-to-amazon-s3/) blog post.
 
@@ -75,7 +75,7 @@ To deploy using **Terraform** follow the instructions below.
 
 View Microsoft Azure usage data in Amazon QuickSight. For an introduction refer to [this blog post](https://aws-blogs-prod.amazon.com/modernizing-with-aws/cloud-intelligence-dashboard-for-azure) *To be Released 09/13/23*
 
-![Cloud Intelligence Dashboard for Azure architecture](https://static.us-east-1.prod.workshops.aws/public/f68ceac7-ccda-4cf5-b04a-9873857b025a/static/images/cidazure-midlevel-grey.png)
+![Cloud Intelligence Dashboard for Azure architecture](https://static.us-east-1.prod.workshops.aws/public/ad089616-77dc-4543-8ae6-786b852455d2/static/images/cidazure-midlevel-grey.png)
 
 To deploy using Cloudformation or Terraform, follow instructions in the [Cloud Intelligence Dashboard for Azure workshop](https://catalog.workshops.aws/cidforazure).
 
