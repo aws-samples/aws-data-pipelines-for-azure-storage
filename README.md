@@ -13,7 +13,7 @@ For an introduction refer to [How to copy data from Azure Blob Storage to Amazon
 
 ![Azure blob to Amazon S3 architecture](/azs3copy-midlevel-grey.png)
 
-To deploy using AWS **CloudFormation**, follow instructions in the [blog post](https://aws-blogs-prod.amazon.com/modernizing-with-aws/azure-blob-to-amazon-s3/) blog post.
+To deploy using AWS **CloudFormation**, follow instructions in the [blog post](https://aws.amazon.com/blogs/modernizing-with-aws/azure-blob-to-amazon-s3/) blog post.
 
 To deploy using **Terraform** follow the instructions below.
 
