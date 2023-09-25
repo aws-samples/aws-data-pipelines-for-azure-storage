@@ -2,12 +2,12 @@
 
 # Common Settings
 variable "PrefixCode" {
-  description = "Prefix used to name all resources created by this CloudFormation template. Cannot be 'aws'. e.g. department name, business unit, project name"
+  description = "Prefix used to name all resources created by this CloudFormation template. Use 3 alphanumeric characters only. Cannot be 'aws'. e.g. department name, business unit, project name"
   type        = string
   default     = "etl"
 }
 variable "EnvironmentCode" {
-  description = "Code used to name all resources created by this CloudFormation template e.g. 'pd' for production"
+  description = "Code used to name all resources created by this CloudFormation template. Use 2 alphanumeric characters only. E.g. 'pd' for production"
   type        = string
   default     = "dv"
 }

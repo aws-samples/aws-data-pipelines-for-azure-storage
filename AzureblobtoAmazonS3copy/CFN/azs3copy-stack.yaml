@@ -39,13 +39,13 @@ Parameters:
     Default: bucketname
     Type: String
   PrefixCode:
-    Description: Prefix used to name all resources created by this CloudFormation template. Cannot be 'aws'. e.g. department name, business unit, project name
+    Description: Prefix used to name all resources created by this CloudFormation template. Use 3 alphanumeric characters only. Cannot be 'aws'. e.g. department name, business unit, project name
     Type: String
     Default: etl
   EnvironmentCode:
     Type: String
     Default: dv
-    Description: Code used to name all resources created by this CloudFormation template e.g. 'pd' for production
+    Description: Code used to name all resources created by this CloudFormation template. Use 2 alphanumeric characters only. E.g. 'pd' for production
   OwnerTag:
     Type: String
     Default: Amazon Web Services

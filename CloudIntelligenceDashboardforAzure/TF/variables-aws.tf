@@ -2,14 +2,14 @@
 
 # Common Settings
 variable "PrefixCode" {
-  description = "Prefix used to name all resources created by this CloudFormation template. Cannot be 'aws'. e.g. department name, business unit, project name"
+  description = "Prefix used to name all resources created by this CloudFormation template. Use 3 alphanumeric characters only. Cannot be 'aws'. E.g 'fin' for FinOps"
   type        = string
-  default     = "etl"
+  default     = "fin"
 }
 variable "EnvironmentCode" {
-  description = "Code used to name all resources created by this CloudFormation template e.g. 'pd' for production"
+  description = "Code used to name all resources created by this CloudFormation template. Use 2 alphanumeric characters only. E.g. 'pd' for production"
   type        = string
-  default     = "dv"
+  default     = "pd"
 }
 variable "OwnerTag" {
   description = "Owner tag value. All resources are created with an 'Owner' tag and the value you set here. e.g. finops, devops, IT shared services, etc."
