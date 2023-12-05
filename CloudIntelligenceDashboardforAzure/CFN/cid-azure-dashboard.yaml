@@ -111,7 +111,7 @@ views:
       CREATE OR REPLACE VIEW ${athena_database_name}.${customer}glt${environment}cidazure_athena_view AS
       SELECT *
       FROM
-        ${source_table}
+        "${source_table}"
       WHERE (month >= DATE(to_iso8601((current_date - INTERVAL  '6' MONTH))))
 parameters:
   customer:
