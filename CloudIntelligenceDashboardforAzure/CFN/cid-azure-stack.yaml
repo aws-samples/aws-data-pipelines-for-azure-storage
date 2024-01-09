@@ -925,7 +925,7 @@ Resources:
       Database: !Ref GlueDatabase
       Description: Cloud Intelligence Dashboard for Azure Athena Named Query
       Name: !Sub ${PrefixCode}atq${EnvironmentCode}cidazure
-      QueryString: !Sub CREATE OR REPLACE VIEW ${GlueTable}_athena_view AS SELECT * FROM ${GlueTable} WHERE month >= DATE(to_iso8601(current_date - interval '6' month))
+      QueryString: !Sub CREATE OR REPLACE VIEW "${GlueTable}_athena_view" AS SELECT * FROM "${GlueTable}" WHERE month >= DATE(to_iso8601(current_date - interval '6' month))
       WorkGroup: !Ref AthenaWorkgroup
 
   ### Create Lambda Functions
