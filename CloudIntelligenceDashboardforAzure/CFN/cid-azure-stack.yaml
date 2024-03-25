@@ -84,14 +84,17 @@ Parameters:
     Type: String
     Description: Microsoft Azure Application ID
     Default: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    NoEcho: true
   AzureTenantID:
     Type: String
     Description: Microsoft Azure Tenant ID
     Default: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    NoEcho: true
   AzureSecretKey:
     Type: String
     Description: Microsoft Azure Client Secret
     Default: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    NoEcho: true
   AzureDateFormat:
     Type: String
     Description: Format of date in Azure cost export, check the date column of your Azure csv export to verify.

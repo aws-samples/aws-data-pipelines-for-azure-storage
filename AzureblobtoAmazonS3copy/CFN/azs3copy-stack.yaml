@@ -64,14 +64,17 @@ Parameters:
     Description: Microsoft Azure Application ID
     Default: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
     Type: String
+    NoEcho: true
   AzureTenantID:
     Description: Microsoft Azure Tenant ID
     Default: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
     Type: String
+    NoEcho: true
   AzureSecretKey:
     Description: Microsoft Azure Client Secret
     Default: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     Type: String
+    NoEcho: true
 
   # Data Copy Parameters
   AzureCopySchedule:
