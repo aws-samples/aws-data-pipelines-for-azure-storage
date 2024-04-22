@@ -385,6 +385,7 @@ Resources:
                   - !Sub arn:${AWS::Partition}:s3:::${SourceBucket}/*
               - Effect: Allow
                 Action:
+                  - kms:Encrypt
                   - kms:Decrypt
                   - kms:GenerateDataKey
                 Resource:
@@ -531,6 +532,22 @@ Resources:
           Value: security
         - Key: Name
           Value: !Sub ${PrefixCode}iar${EnvironmentCode}cidazureeventbrg
+    Condition: Deploy
+  DisableMultipartPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: !Sub ${PrefixCode}iap${EnvironmentCode}disablemultipart
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - lambda:GetFunctionConfiguration
+              - lambda:UpdateFunctionConfiguration
+            Resource:
+              - !GetAtt LambdaFunction01.Arn
+      Roles:
+        - !Ref GlueIAM
     Condition: Deploy
   QuickSightPolicy:
     Type: "AWS::IAM::Policy"
@@ -875,6 +892,21 @@ Resources:
         Solution: AWSCIDforAzure
         Rtype: parameter
         Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_error_folder
+  SMParameterVarLambda01Name:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cidazure-var_lambda01_name
+      Type: String
+      Value: !Sub ${LambdaFunction01}
+      Description: Name of Lambda01 used in Glue Script
+      Tags:
+        Customer: !Sub ${OwnerTag}
+        Environment: !Sub ${EnvironmentTag}
+        Provisioner: CFN
+        Solution: AWSCIDforAzure
+        Rtype: parameter
+        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_lambda01_name
+    Condition: Deploy
   
   ### Create SSM Parameter to supply dashboard installation command
   SMParameterDashboardDeploy:

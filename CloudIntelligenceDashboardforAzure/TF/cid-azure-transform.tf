@@ -64,6 +64,7 @@ resource "aws_iam_role_policy" "GlueIAM" {
       },
       {
         Action = [
+          "kms:Encrypt",
           "kms:Decrypt",
           "kms:GenerateDataKey"
         ]
@@ -139,6 +140,27 @@ resource "aws_iam_role_policy" "cidazurequicksight" {
 }
 # TODO: Replace with QuickSight role-based access control to data sources that connect to Amazon S3 and Athena
 
+#[Comment out for offline mode 1/1]
+resource "aws_iam_role_policy" "disablemultipartpolicy" {
+  name = format("%s%s%s%s", var.PrefixCode, "irp", var.EnvironmentCode, "disablemultipart")
+  role = aws_iam_role.GlueIAM.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "lambda:GetFunctionConfiguration",
+          "lambda:UpdateFunctionConfiguration"
+        ]
+        Effect = "Allow"
+        Resource = [
+          "${aws_lambda_function.LambdaFunction01.arn}"
+        ]
+      }
+    ]
+  })
+}
+
 ### Upload Glue Script
 resource "aws_s3_object" "cidazuregluepy" {
   bucket = aws_s3_bucket.S3Bucket.id
@@ -157,6 +179,7 @@ resource "aws_s3_object" "cidazuregluepy" {
       var_processed_path   = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidprocessed/"
       var_raw_folder       = "azurecidraw"
       var_raw_path         = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidraw/${var.AzureFolderPath}"
+      var_lambda01_name    = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda01")
       SELECTED_TAGS        = var.AzureTags
     }
   )
@@ -166,7 +189,6 @@ resource "aws_s3_object" "cidazuregluepy" {
 resource "aws_glue_catalog_database" "cidazure" {
   name        = format("%s%s%s%s", var.PrefixCode, "gld", var.EnvironmentCode, "cidazure")
   description = "Glue catalog database used to process Azure Cloud Intelligence Dashboard data"
-
 }
 
 resource "aws_glue_catalog_table" "cidazure" {

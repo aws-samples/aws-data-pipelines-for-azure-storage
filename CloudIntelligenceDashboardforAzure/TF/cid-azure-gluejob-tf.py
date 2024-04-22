@@ -109,6 +109,29 @@ if var_bulk_run == 'true':
     for obj in objects:
         if obj['Key'].startswith(var_raw_folder):
             print(obj['Key'])
+    # Disable multipart upload Lambda functions
+    lambda_client = boto3.client('lambda')
+    try:
+        # Retrieve current environment variables
+        function_name = "${var_lambda01_name}"
+        current_config = lambda_client.get_function_configuration(FunctionName=function_name)
+        environment = current_config.get('Environment', {})
+        variables = environment.get('Variables', {})
+
+        # Update partitionSize
+        variables['partitionSize'] = '10737418240'
+
+        # Update function configuration with the modified environment variables
+        response = lambda_client.update_function_configuration(
+            FunctionName = function_name,
+            Environment = {'Variables': variables}
+        )
+        print("INFO: Lambda function configuration updated successfully.")
+    except Exception as e:
+        print("ERROR: {}".format(e))
+        pass
+    # Change bulk_run ssm parameter to false
+    ssm_client.put_parameter(Name='cidazure-var_bulk_run',Value='false',Type='String',Overwrite=True)
 else:
     print("INFO: Bulk run is set to {}, continuing with normal run".format(var_bulk_run))
 
@@ -159,9 +182,9 @@ try:
         # Set Data Types
         df2 = df1.withColumn("BillingPeriodEndDateParsed", to_date(df1.BillingPeriodEndDate, var_date_format)) \
             .withColumn("BillingPeriodStartDateParsed", to_date(df1.BillingPeriodStartDate, var_date_format)) \
-            .withColumn("CostInBillingCurrency", col("CostInBillingCurrency").cast(DecimalType(21, 16))) \
+            .withColumn("CostInBillingCurrency", col("CostInBillingCurrency").cast(DecimalType(23, 16))) \
             .withColumn("DateParsed", to_date(df1.Date, var_date_format)) \
-            .withColumn("EffectivePrice", col("EffectivePrice").cast(DecimalType(21, 16))) \
+            .withColumn("EffectivePrice", col("EffectivePrice").cast(DecimalType(23, 16))) \
             .withColumn("PayGPrice", col("PayGPrice").cast(LongType())) \
             .withColumn("Quantity", col("Quantity").cast(DoubleType())) \
             .withColumn("UnitPrice", col("UnitPrice").cast(DoubleType()))
@@ -268,10 +291,6 @@ except Exception as e:
     print("WARNING: Cannot convert file(s) to parquet. Moved to error folder if normal run")
     print("ERROR: {}".format(e))
     raise e
-
-### Change bulk_run ssm parameter to false on successful run
-if var_bulk_run == 'true':
-    ssm_client.put_parameter(Name='cidazure-var_bulk_run',Value='false',Type='String',Overwrite=True)
 
 ### Copy CSV from raw to processed
 copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_processed_folder)
