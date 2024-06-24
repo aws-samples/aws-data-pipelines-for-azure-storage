@@ -914,7 +914,7 @@ Resources:
     Properties:
       Name: cidazure-deploy_dashboard_command
       Type: String
-      Value: !Sub cid-cmd deploy  --resources 'https://raw.githubusercontent.com/aws-samples/aws-data-pipelines-for-azure-storage/main/CloudIntelligenceDashboardforAzure/CFN/cid-azure-dashboard.yaml' --customer '${PrefixCode}' --environment '${EnvironmentCode}' --athena-database '${GlueDatabase}'  --share-method 'account' --athena-workgroup '${AthenaWorkgroup}' --quicksight-datasource-id AWSCIDforAzure --source-table '${GlueTable}' --dashboard-id '${PrefixCode}-${EnvironmentCode}-azure-cost --quicksight-datasource-role aws-quicksight-service-role-v0'
+      Value: !Sub cid-cmd deploy  --resources 'https://raw.githubusercontent.com/aws-samples/aws-data-pipelines-for-azure-storage/main/CloudIntelligenceDashboardforAzure/CFN/cid-azure-dashboard.yaml' --customer '${PrefixCode}' --environment '${EnvironmentCode}' --athena-database '${GlueDatabase}'  --share-method 'account' --athena-workgroup '${AthenaWorkgroup}' --quicksight-datasource-id AWSCIDforAzure --source-table '${GlueTable}' --dashboard-id '${PrefixCode}-${EnvironmentCode}-azure-cost' --quicksight-datasource-role 'aws-quicksight-service-role-v0'
       Description: Cloud Intelligence Dashboard for Azure parameter. Command used to deploy dashboard
       Tags:
         Customer: !Sub ${OwnerTag}
