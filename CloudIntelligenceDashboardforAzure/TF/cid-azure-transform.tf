@@ -102,7 +102,7 @@ resource "aws_iam_role_policy" "GlueIAM" {
 
 resource "aws_iam_role_policy" "cidazurequicksight" {
   name = format("%s%s%s%s", var.PrefixCode, "irp", var.EnvironmentCode, "cidazurequicksight")
-  role = "aws-quicksight-service-role-v0"
+  role = var.QuickSightServiceRole
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -299,7 +299,7 @@ resource "aws_glue_trigger" "cidazure" {
 resource "aws_ssm_parameter" "DashboardDeploy" {
   name        = format("%s%s%s%s", var.PrefixCode, "smp", var.EnvironmentCode, "-cidazure-deploy_dashboard_command")
   type        = "String"
-  value       = "cid-cmd deploy --resources https://raw.githubusercontent.com/aws-samples/aws-data-pipelines-for-azure-storage/main/CloudIntelligenceDashboardforAzure/CFN/cid-azure-dashboard.yaml --customer ${var.PrefixCode} --environment ${var.EnvironmentCode} --athena-database ${aws_glue_catalog_database.cidazure.name} --share-method account --athena-workgroup ${aws_athena_workgroup.cidazure.name} --quicksight-datasource-id AWSCIDforAzure --source-table ${aws_glue_catalog_table.cidazure.name} --dashboard-id ${var.PrefixCode}-${var.EnvironmentCode}-azure-cost --quicksight-datasource-role aws-quicksight-service-role-v0"
+  value       = "cid-cmd deploy --resources https://raw.githubusercontent.com/aws-samples/aws-data-pipelines-for-azure-storage/main/CloudIntelligenceDashboardforAzure/CFN/cid-azure-dashboard.yaml --customer ${var.PrefixCode} --environment ${var.EnvironmentCode} --athena-database ${aws_glue_catalog_database.cidazure.name} --share-method account --athena-workgroup ${aws_athena_workgroup.cidazure.name} --quicksight-datasource-id AWSCIDforAzure --source-table ${aws_glue_catalog_table.cidazure.name} --dashboard-id ${var.PrefixCode}-${var.EnvironmentCode}-azure-cost --quicksight-datasource-role ${var.QuickSightServiceRole}"
   description = "Cloud Intelligence Dashboard for Azure parameter. Command used to deploy dashboard"
 
   tags = {

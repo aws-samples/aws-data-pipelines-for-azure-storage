@@ -14,6 +14,7 @@ Metadata:
           - EnvironmentCode
           - OwnerTag
           - EnvironmentTag
+          - QuickSightServiceRole
       - Label:
           default: Microsoft Azure Settings
         Parameters:
@@ -67,6 +68,10 @@ Parameters:
     Type: String
     Description: Environment tag value. All resources are created with an 'Environment' tag and the value you set here. e.g. production, staging, development
     Default: production
+  QuickSightServiceRole:
+    Type: String
+    Description: IAM Role used by QuickSight to access Amazon S3. You may not have the below service role or you may have setup a custom role
+    Default: aws-quicksight-service-role-v0
 
   ### Microsoft Azure Parameters
   AccountType:
@@ -578,8 +583,7 @@ Resources:
             Resource:
               - !GetAtt KMSKey.Arn
       Roles:
-        - aws-quicksight-service-role-v0
-  # TODO: Replace with QuickSight role-based access control to data sources that connect to Amazon S3 and Athena
+        - !Sub ${QuickSightServiceRole}
 
   ### Create Glue Resources
   GlueDatabase:
@@ -914,7 +918,7 @@ Resources:
     Properties:
       Name: cidazure-deploy_dashboard_command
       Type: String
-      Value: !Sub cid-cmd deploy  --resources 'https://raw.githubusercontent.com/aws-samples/aws-data-pipelines-for-azure-storage/main/CloudIntelligenceDashboardforAzure/CFN/cid-azure-dashboard.yaml' --customer '${PrefixCode}' --environment '${EnvironmentCode}' --athena-database '${GlueDatabase}'  --share-method 'account' --athena-workgroup '${AthenaWorkgroup}' --quicksight-datasource-id AWSCIDforAzure --source-table '${GlueTable}' --dashboard-id '${PrefixCode}-${EnvironmentCode}-azure-cost' --quicksight-datasource-role 'aws-quicksight-service-role-v0'
+      Value: !Sub cid-cmd deploy  --resources 'https://raw.githubusercontent.com/aws-samples/aws-data-pipelines-for-azure-storage/main/CloudIntelligenceDashboardforAzure/CFN/cid-azure-dashboard.yaml' --customer '${PrefixCode}' --environment '${EnvironmentCode}' --athena-database '${GlueDatabase}'  --share-method 'account' --athena-workgroup '${AthenaWorkgroup}' --quicksight-datasource-id AWSCIDforAzure --source-table '${GlueTable}' --dashboard-id '${PrefixCode}-${EnvironmentCode}-azure-cost' --quicksight-datasource-role '${QuickSightServiceRole}'
       Description: Cloud Intelligence Dashboard for Azure parameter. Command used to deploy dashboard
       Tags:
         Customer: !Sub ${OwnerTag}

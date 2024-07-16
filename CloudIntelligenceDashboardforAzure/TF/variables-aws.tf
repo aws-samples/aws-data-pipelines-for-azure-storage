@@ -21,6 +21,11 @@ variable "EnvironmentTag" {
   type        = string
   default     = "Production"
 }
+variable "QuickSightServiceRole" {
+  description = "IAM Role used by QuickSight to access Amazon S3. You may not have the below service role or you may have setup a custom role."
+  type        = string
+  default     = "aws-quicksight-service-role-v0"
+}
 
 # Microsoft Azure Settings
 variable "AccountType" {

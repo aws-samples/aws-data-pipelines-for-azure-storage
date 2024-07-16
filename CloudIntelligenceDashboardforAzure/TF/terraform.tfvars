@@ -1,10 +1,11 @@
 # Parameters
 
 # Common Settings
-PrefixCode      = "cid"
-EnvironmentCode = "dv"
-OwnerTag        = "Amazon Web Services"
-EnvironmentTag  = "development"
+PrefixCode            = "cid"
+EnvironmentCode       = "dv"
+OwnerTag              = "Amazon Web Services"
+EnvironmentTag        = "development"
+QuickSightServiceRole = "aws-quicksight-service-role-v0"
 
 # Microsoft Azure Settings
 # NOTE: Not Required when using Azure Example templates
