@@ -41,7 +41,7 @@ def lambda_handler(event, context):
 
     for i in range(blob_partitions):
         currentOffset = i * partitionSize
-        bytesToDownload = partitionSize - i
+        bytesToDownload = min(partitionSize, blobSize - currentOffset)
         if(bytesToDownload > 0):
             inputParams = {
                 'oauth_url': oauth_url,
