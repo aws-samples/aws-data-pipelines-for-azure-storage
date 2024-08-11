@@ -13,23 +13,34 @@ sc = SparkContext.getOrCreate()
 glueContext = GlueContext(sc)
 spark = glueContext.spark_session
 
-### Parameters fetched from AWS Systems Manager Parameter Store
-ssm_client = boto3.client('ssm')
-
-var_account_type = ((ssm_client.get_parameter(Name="cidazure-var_account_type"))['Parameter']['Value'])
-var_bucket = ((ssm_client.get_parameter(Name="cidazure-var_bucket"))['Parameter']['Value'])
-var_date_format = ((ssm_client.get_parameter(Name="cidazure-var_date_format"))['Parameter']['Value'])
-var_bulk_run = ((ssm_client.get_parameter(Name="cidazure-var_bulk_run"))['Parameter']['Value'])
-var_error_folder = ((ssm_client.get_parameter(Name="cidazure-var_error_folder"))['Parameter']['Value'])
-var_glue_database = ((ssm_client.get_parameter(Name="cidazure-var_glue_database"))['Parameter']['Value'])
-var_glue_table = ((ssm_client.get_parameter(Name="cidazure-var_glue_table"))['Parameter']['Value'])
-var_parquet_folder = ((ssm_client.get_parameter(Name="cidazure-var_parquet_folder"))["Parameter"]["Value"])
-var_parquet_path = ((ssm_client.get_parameter(Name="cidazure-var_parquet_path"))["Parameter"]["Value"])
-var_processed_folder = ((ssm_client.get_parameter(Name="cidazure-var_processed_folder"))['Parameter']['Value'])
-var_processed_path = ((ssm_client.get_parameter(Name="cidazure-var_processed_path"))['Parameter']['Value'])
-var_raw_folder = ((ssm_client.get_parameter(Name="cidazure-var_raw_folder"))['Parameter']['Value'])
-var_raw_path = ((ssm_client.get_parameter(Name="cidazure-var_raw_path"))["Parameter"]["Value"])+((ssm_client.get_parameter(Name="cidazure-var_folderpath"))["Parameter"]["Value"])
-SELECTED_TAGS = ((ssm_client.get_parameter(Name="cidazure-var_azuretags"))['Parameter']['Value']).split(", ")
+### Parameters fetched from Glue Job
+from awsglue.utils import getResolvedOptions
+args = getResolvedOptions(sys.argv, [
+    'JOB_NAME', 'var_raw_path', 'var_parquet_path', 'var_processed_path',
+    'var_glue_database', 'var_glue_table', 'var_bucket', 'var_raw_folder',
+    'var_processed_folder', 'var_parquet_folder', 'var_date_format',
+    'var_folderpath', 'var_azuretags', 'var_account_type', 'var_bulk_run', 
+    'var_error_folder', 'var_lambda01_name'
+])
+var_raw_path = args['var_raw_path']
+var_parquet_path = args['var_parquet_path']
+var_processed_path = args['var_processed_path']
+var_glue_database = args['var_glue_database']
+var_glue_table = args['var_glue_table']
+var_bucket = args['var_bucket']
+var_raw_folder = args['var_raw_folder']
+var_processed_folder = args['var_processed_folder']
+var_parquet_folder = args['var_parquet_folder']
+var_date_format = args['var_date_format']
+var_folderpath = args['var_folderpath']
+var_azuretags = args['var_azuretags']
+var_account_type = args['var_account_type']
+var_bulk_run = args['var_bulk_run']
+var_error_folder = args['var_error_folder']
+var_error_folder = args['var_error_folder']
+var_lambda01_name = args['var_lambda01_name']
+var_raw_fullpath = var_raw_path +var_folderpath
+SELECTED_TAGS = var_azuretags.split(", ")
 
 ### Copy Function
 import concurrent.futures
@@ -64,6 +75,7 @@ def delete_s3_folder(bucket, folder):
 
 ### Bulk Run - process latest object for each month
 from datetime import datetime
+ssm_client = boto3.client('ssm')
 
 if var_bulk_run == 'true':
     print("INFO: Bulk run is set to {}, starting bulk run".format(var_bulk_run))
@@ -113,7 +125,7 @@ if var_bulk_run == 'true':
     lambda_client = boto3.client('lambda')
     try:
         # Retrieve current environment variables
-        function_name = ((ssm_client.get_parameter(Name="cidazure-var_lambda01_name"))['Parameter']['Value'])
+        function_name = var_lambda01_name
         current_config = lambda_client.get_function_configuration(FunctionName=function_name)
         environment = current_config.get('Environment', {})
         variables = environment.get('Variables', {})
@@ -140,10 +152,10 @@ import os
 from pyspark.sql.functions import input_file_name
 
 try:
-    df1 = spark.read.option("header","true").option("delimiter",",").option("escape", "\"").csv(var_raw_path)
+    df1 = spark.read.option("header","true").option("delimiter",",").option("escape", "\"").csv(var_raw_fullpath)
     df1 = df1.withColumn("file_path", input_file_name())
 except Exception as e:
-    print("WARNING: Cannot read CSV file(s) in {}. Incorrect path or folder empty.".format(var_raw_path))
+    print("WARNING: Cannot read CSV file(s) in {}. Incorrect path or folder empty.".format(var_raw_fullpath))
     print("ERROR: {}".format(e))
     raise e
 

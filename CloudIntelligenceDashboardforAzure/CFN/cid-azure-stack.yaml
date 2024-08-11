@@ -8,7 +8,6 @@ Metadata:
       - Label:
           default: Common Settings
         Parameters:
-          - DeploymentType
           - SourceBucket
           - PrefixCode
           - EnvironmentCode
@@ -41,13 +40,6 @@ Metadata:
 
 ### Common Parameters
 Parameters:
-  DeploymentType:
-    Type: String
-    Description: Choose 'automatic' for Azure data retrieval or 'manual' for one-time billing analysis.
-    Default: "automatic"
-    AllowedValues:
-      - "automatic"
-      - "manual"
   SourceBucket:
     Type: String
     Description: The new S3 bucket created which contains Cloud Intelligence Dashboard for Azure installation/source files
@@ -147,8 +139,6 @@ Parameters:
     AllowedValues:
       - true
       - false
-Conditions:
-  Deploy: !Equals [!Ref DeploymentType, "automatic"]
 
 Resources:
   ### Create a Resource Group for CloudFormation resources
@@ -224,7 +214,6 @@ Resources:
           Value: security
         - Key: Name
           Value: !Sub ${PrefixCode}sms${EnvironmentCode}cidazure
-    Condition: Deploy
 
   ### Create KMS key
   KMSKey:
@@ -500,7 +489,6 @@ Resources:
           Value: security
         - Key: Name
           Value: !Sub ${PrefixCode}iar${EnvironmentCode}cidazurelambda
-    Condition: Deploy
   EventBridgeIAM:
     Type: AWS::IAM::Role
     Properties:
@@ -537,7 +525,6 @@ Resources:
           Value: security
         - Key: Name
           Value: !Sub ${PrefixCode}iar${EnvironmentCode}cidazureeventbrg
-    Condition: Deploy
   DisableMultipartPolicy:
     Type: "AWS::IAM::Policy"
     Properties:
@@ -553,7 +540,6 @@ Resources:
               - !GetAtt LambdaFunction01.Arn
       Roles:
         - !Ref GlueIAM
-    Condition: Deploy
   QuickSightPolicy:
     Type: "AWS::IAM::Policy"
     Properties:
@@ -637,13 +623,29 @@ Resources:
         ScriptLocation: !Sub "s3://${SourceBucket}/cid-azure-gluejob-cfn.py"
         PythonVersion: "3"
       DefaultArguments:
-        "--enable-glue-datacatalog": true
-        "--enable-spark-ui": true
-        "--library-set": analytics
-        "--enable-metrics": ""
-        "--enable-job-insights": true
-        "--enable-auto-scaling": true
-        "--job-bookmark-option": job-bookmark-enable
+        --enable-glue-datacatalog: true
+        --enable-spark-ui: true
+        --library-set: analytics
+        --enable-metrics: ""
+        --enable-job-insights: true
+        --enable-auto-scaling: true
+        --job-bookmark-option: job-bookmark-enable
+        --var_raw_path: !Sub s3://${S3Bucket}/azurecidraw/
+        --var_parquet_path: !Sub s3://${S3Bucket}/azurecidparquet/
+        --var_processed_path: !Sub s3://${S3Bucket}/azurecidprocessed/
+        --var_glue_database: !Ref GlueDatabase
+        --var_glue_table: !Ref GlueTable
+        --var_bucket: !Ref S3Bucket
+        --var_raw_folder: azurecidraw
+        --var_processed_folder: azurecidprocessed
+        --var_parquet_folder: azurecidparquet
+        --var_date_format: !Sub ${AzureDateFormat}
+        --var_folderpath: !Sub ${AzureFolderPath}
+        --var_azuretags: !GetAtt SMParameterVarAzureTags.Value
+        --var_account_type: !Sub ${AccountType}
+        --var_bulk_run: !GetAtt SMParameterVarBulkRun.Value
+        --var_error_folder: azureciderror
+        --var_lambda01_name: !Sub ${LambdaFunction01}
       SecurityConfiguration: !Ref GlueSecurity
       Tags:
         Customer: !Sub ${OwnerTag}
@@ -683,167 +685,12 @@ Resources:
         Solution: AWSCIDforAzure
         Rtype: data
         Name: !Sub ${PrefixCode}glt${EnvironmentCode}cidazure
-    Condition: Deploy
   
   ### Create System Manager Parameters used by Glue script
-  SMParameterVarRawPath:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_raw_path
-      Type: String
-      Value: !Sub s3://${S3Bucket}/azurecidraw/
-      Description: Cloud Intelligence Dashboard for Azure parameter. S3 path to the raw folder where incoming CSV files are created
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_raw_path
-  SMParameterVarParquetPath:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_parquet_path
-      Type: String
-      Value: !Sub s3://${S3Bucket}/azurecidparquet/
-      Description: Cloud Intelligence Dashboard for Azure parameter. S3 path to the parquet folder where parquet files are created by the Glue job
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_parquet_path
-  SMParameterVarProcessedPath:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_processed_path
-      Type: String
-      Value: !Sub s3://${S3Bucket}/azurecidprocessed/
-      Description: Cloud Intelligence Dashboard for Azure parameter. S3 path to the processed folder where CSV files are moved by Glue after processing
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_processed_path
-  SMParameterVargluedatabase:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_glue_database
-      Type: String
-      Value: !Ref GlueDatabase
-      Description: Cloud Intelligence Dashboard for Azure parameter. Glue database name
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_glue_database
-  SMParameterVargluetable:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_glue_table
-      Type: String
-      Value: !Ref GlueTable
-      Description: Cloud Intelligence Dashboard for Azure parameter. Glue table name
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_glue_table
-  SMParameterVarBucket:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_bucket
-      Type: String
-      Value: !Ref S3Bucket
-      Description: Cloud Intelligence Dashboard for Azure parameter. S3 bucket name where Azure data is stored and processed
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_bucket
-  SMParameterVarRawFolder:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_raw_folder
-      Type: String
-      Value: azurecidraw
-      Description: Cloud Intelligence Dashboard for Azure parameter. Name of the S3 folder containing incoming CSV files. This should be left as azurecidraw
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_raw_folder
-  SMParameterVarProcessedFolder:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_processed_folder
-      Type: String
-      Value: azurecidprocessed
-      Description: Cloud Intelligence Dashboard for Azure parameter. Name of the S3 folder to place CSV files after processing. This should be left as azurecidprocessed
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_processed_folder
-  SMParameterVarParquetFolder:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_parquet_folder
-      Type: String
-      Value: azurecidparquet
-      Description: Cloud Intelligence Dashboard for Azure parameter. Name of the S3 folder to place parquet files. This should be left as azurecidparquet
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_parquet_folder
-  SMParameterVarAzureDateFormat:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_date_format
-      Type: String
-      Value: !Sub ${AzureDateFormat}
-      Description: Cloud Intelligence Dashboard for Azure parameter. Date format used within Azure cost exports
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_date_format
-  SMParameterVarAzureFolderPath:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_folderpath
-      Type: String
-      Value: !Sub ${AzureFolderPath}
-      Description: Cloud Intelligence Dashboard for Azure parameter Glue job. S3 Folder structure for incoming CSV files. E.g directory/*
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_folderpath
   SMParameterVarAzureTags:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: cidazure-var_azuretags
+      Name: !Sub ${PrefixCode}smp${EnvironmentCode}cidazure-var_azuretags
       Type: String
       Value: !Sub ${AzureTags}
       Description: Cloud Intelligence Dashboard for Azure parameter. Azure tags to be exposed to QuickSight
@@ -853,70 +700,59 @@ Resources:
         Provisioner: CFN
         Solution: AWSCIDforAzure
         Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_azuretags
-  SMParameterVarAccountType:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_account_type
-      Type: String
-      Value: !Sub ${AccountType}
-      Description: Cloud Intelligence Dashboard for Azure parameter. Microsoft account type used to determine export data schema
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_account_type
+        Name: !Sub ${PrefixCode}smp${EnvironmentCode}cidazure-var_azuretags
   SMParameterVarBulkRun:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: cidazure-var_bulk_run
+      Name: !Sub ${PrefixCode}smp${EnvironmentCode}cidazure-var_bulk_run
       Type: String
-      Value: !If [Deploy, "true", "false"]
-      Description: Cloud Intelligence Dashboard for Azure parameter. Set to true (lowercase t) if this is the first data copy or you are reprocessing, otherwise false.
+      Value: "true"
+      Description: Cloud Intelligence Dashboard for Azure parameter. Set to true (lowercase t) if this is the first data copy or you are reprocessing. Otherwise, set to false, especially if the Azure FOCUS export is enabled
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
         Provisioner: CFN
         Solution: AWSCIDforAzure
         Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_bulk_run
-  SMParameterVarErrorFolder:
+        Name: !Sub ${PrefixCode}smp${EnvironmentCode}cidazure-var_bulk_run
+  SMParameterGlueNoteBookArgs:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: cidazure-var_error_folder
+      Name: !Sub ${PrefixCode}smp${EnvironmentCode}-GlueNoteBookArgs
       Type: String
-      Value: azureciderror
-      Description: Name of the S3 folder to place parquet files. This should be left as azureciderror.
+      Value: !Sub |
+          var_raw_path = 's3://${S3Bucket}/azurecidraw/'
+          var_parquet_path = 's3://${S3Bucket}/azurecidparquet/'
+          var_processed_path = 's3://${S3Bucket}/azurecidprocessed/'
+          var_glue_database = '${GlueDatabase}'
+          var_glue_table = '${GlueTable}'
+          var_bucket = '${S3Bucket}'
+          var_raw_folder = 'azurecidraw'
+          var_processed_folder = 'azurecidprocessed'
+          var_parquet_folder = 'azurecidparquet'
+          var_date_format = '${AzureDateFormat}'
+          var_folderpath = '${AzureFolderPath}'
+          var_azuretags = '{{resolve:ssm:${SMParameterVarAzureTags}}}'
+          var_account_type = '${AccountType}'
+          var_bulk_run = '{{resolve:ssm:${SMParameterVarBulkRun}}}'
+          var_error_folder = 'azureciderror'
+          var_lambda01_name = '${LambdaFunction01}'
+          var_raw_fullpath = var_raw_path + var_folderpath
+          SELECTED_TAGS = var_azuretags.split(", ")
+      Description: Cloud Intelligence Dashboard for Azure parameters. Used to setup Glue Notebook parameters for interactive sessions.
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
         Provisioner: CFN
         Solution: AWSCIDforAzure
         Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_error_folder
-  SMParameterVarLambda01Name:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: cidazure-var_lambda01_name
-      Type: String
-      Value: !Sub ${LambdaFunction01}
-      Description: Name of Lambda01 used in Glue Script
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_lambda01_name
-    Condition: Deploy
+        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_raw_path
   
   ### Create SSM Parameter to supply dashboard installation command
   SMParameterDashboardDeploy:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: cidazure-deploy_dashboard_command
+      Name: !Sub ${PrefixCode}smp${EnvironmentCode}-deploy_dashboard_command
       Type: String
       Value: !Sub cid-cmd deploy  --resources 'https://raw.githubusercontent.com/aws-samples/aws-data-pipelines-for-azure-storage/main/CloudIntelligenceDashboardforAzure/CFN/cid-azure-dashboard.yaml' --customer '${PrefixCode}' --environment '${EnvironmentCode}' --athena-database '${GlueDatabase}'  --share-method 'account' --athena-workgroup '${AthenaWorkgroup}' --quicksight-datasource-id AWSCIDforAzure --source-table '${GlueTable}' --dashboard-id '${PrefixCode}-${EnvironmentCode}-azure-cost' --quicksight-datasource-role '${QuickSightServiceRole}'
       Description: Cloud Intelligence Dashboard for Azure parameter. Command used to deploy dashboard
@@ -978,7 +814,6 @@ Resources:
       Content:
         S3Bucket: !Sub ${SourceBucket}
         S3Key: azure-arm-identity.zip
-    Condition: Deploy
   LambdaLayerVersionStorage:
     Type: AWS::Lambda::LayerVersion
     Properties:
@@ -989,7 +824,6 @@ Resources:
       Content:
         S3Bucket: !Sub ${SourceBucket}
         S3Key: azure-arm-storage.zip
-    Condition: Deploy
   LambdaFunction01:
     Type: AWS::Lambda::Function
     Properties:
@@ -1033,7 +867,6 @@ Resources:
           Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda01
-    Condition: Deploy
   LambdaFunction02:
     Type: AWS::Lambda::Function
     Properties:
@@ -1073,7 +906,6 @@ Resources:
           Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda02
-    Condition: Deploy
   LambdaFunction03:
     Type: AWS::Lambda::Function
     Properties:
@@ -1112,7 +944,6 @@ Resources:
           Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda03
-    Condition: Deploy
   LambdaFunction04:
     Type: AWS::Lambda::Function
     Properties:
@@ -1148,7 +979,6 @@ Resources:
           Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda04
-    Condition: Deploy
   LambdaFunction05:
     Type: AWS::Lambda::Function
     Properties:
@@ -1187,7 +1017,6 @@ Resources:
           Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda05
-    Condition: Deploy
   LambdaFunction06:
     Type: AWS::Lambda::Function
     Properties:
@@ -1223,7 +1052,6 @@ Resources:
           Value: compute
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda06
-    Condition: Deploy
 
   ### Create SNS queues
   SNSTopicL1L2:
@@ -1245,7 +1073,6 @@ Resources:
           Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureL1_to_L2
-    Condition: Deploy
   SNSTopicL2L3:
     Type: AWS::SNS::Topic
     Properties:
@@ -1265,7 +1092,6 @@ Resources:
           Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureL2_to_L3
-    Condition: Deploy
   SNSTopicLargeFileInit:
     Type: AWS::SNS::Topic
     Properties:
@@ -1285,7 +1111,6 @@ Resources:
           Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFileInit
-    Condition: Deploy
   SNSTopicLargeFilePart:
     Type: AWS::SNS::Topic
     Properties:
@@ -1305,7 +1130,6 @@ Resources:
           Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFilePart
-    Condition: Deploy
   SNSTopicLargeFileRecomb:
     Type: AWS::SNS::Topic
     Properties:
@@ -1325,7 +1149,6 @@ Resources:
           Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureLargeFileRecomb
-    Condition: Deploy
   SNSTopicDeadLetterQueue:
     Type: AWS::SNS::Topic
     Properties:
@@ -1345,7 +1168,6 @@ Resources:
           Value: messaging
         - Key: Name
           Value: !Sub ${PrefixCode}sns${EnvironmentCode}cidazureDLQ
-    Condition: Deploy
   SNSSubscriptionL1L2:
     Type: AWS::SNS::Subscription
     Properties:
@@ -1353,7 +1175,6 @@ Resources:
       Endpoint: !GetAtt LambdaFunction02.Arn
       Protocol: lambda
       Region: !Ref AWS::Region
-    Condition: Deploy
   SNSSubscriptionL2L3:
     Type: AWS::SNS::Subscription
     Properties:
@@ -1361,7 +1182,6 @@ Resources:
       Endpoint: !GetAtt LambdaFunction03.Arn
       Protocol: lambda
       Region: !Ref AWS::Region
-    Condition: Deploy
   SNSSubscriptionLargeFileInit:
     Type: AWS::SNS::Subscription
     Properties:
@@ -1369,7 +1189,6 @@ Resources:
       Endpoint: !GetAtt LambdaFunction04.Arn
       Protocol: lambda
       Region: !Ref AWS::Region
-    Condition: Deploy
   SNSSubscriptionLargeFilePart:
     Type: AWS::SNS::Subscription
     Properties:
@@ -1377,7 +1196,6 @@ Resources:
       Endpoint: !GetAtt LambdaFunction05.Arn
       Protocol: lambda
       Region: !Ref AWS::Region
-    Condition: Deploy
   SNSSubscriptionLargeFileRecomb:
     Type: AWS::SNS::Subscription
     Properties:
@@ -1385,7 +1203,6 @@ Resources:
       Endpoint: !GetAtt LambdaFunction06.Arn
       Protocol: lambda
       Region: !Ref AWS::Region
-    Condition: Deploy
   LambdaPermissionL1L2:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1393,7 +1210,6 @@ Resources:
       FunctionName: !GetAtt LambdaFunction02.Arn
       Principal: sns.amazonaws.com
       SourceArn: !Ref SNSTopicL1L2
-    Condition: Deploy
   LambdaPermissionL2L3:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1401,7 +1217,6 @@ Resources:
       FunctionName: !GetAtt LambdaFunction03.Arn
       Principal: sns.amazonaws.com
       SourceArn: !Ref SNSTopicL2L3
-    Condition: Deploy
   LambdaPermissionLargeFileInit:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1409,7 +1224,6 @@ Resources:
       FunctionName: !GetAtt LambdaFunction04.Arn
       Principal: sns.amazonaws.com
       SourceArn: !Ref SNSTopicLargeFileInit
-    Condition: Deploy
   LambdaPermissionLargeFilePart:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1417,7 +1231,6 @@ Resources:
       FunctionName: !GetAtt LambdaFunction05.Arn
       Principal: sns.amazonaws.com
       SourceArn: !Ref SNSTopicLargeFilePart
-    Condition: Deploy
   LambdaPermissionLargeFileRecomb:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1425,7 +1238,7 @@ Resources:
       FunctionName: !GetAtt LambdaFunction06.Arn
       Principal: sns.amazonaws.com
       SourceArn: !Ref SNSTopicLargeFileRecomb
-    Condition: Deploy
+
 
   ### Create EventBridge schedule
   ScheduledRule:
@@ -1439,7 +1252,6 @@ Resources:
       Targets:
         - Arn: !GetAtt LambdaFunction01.Arn
           Id: InvokeLaunchQualification
-    Condition: Deploy
   LambdaPermissionScheduledRule:
     Type: AWS::Lambda::Permission
     Properties:
@@ -1447,7 +1259,7 @@ Resources:
       Action: "lambda:InvokeFunction"
       Principal: "events.amazonaws.com"
       SourceArn: !GetAtt ScheduledRule.Arn
-    Condition: Deploy
+
 
   ### Cloudwatch Dashboard
   CloudwatchDashboard:
@@ -1722,4 +1534,3 @@ Resources:
             }
           ]
         }
-    Condition: Deploy
