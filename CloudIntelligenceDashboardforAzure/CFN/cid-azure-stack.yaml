@@ -70,7 +70,7 @@ Parameters:
     Default: production
   QuickSightServiceRole:
     Type: String
-    Description: IAM Role used by QuickSight to access Amazon S3. You may not have the below service role or you may have setup a custom role
+    Description: IAM Role used by QuickSight to access Amazon S3. You may not have the below service role or you may have setup a custom role such as CidCmdQuickSightDataSourceRole
     Default: aws-quicksight-service-role-v0
 
   ### Microsoft Azure Parameters
@@ -566,7 +566,7 @@ Resources:
               - s3:ListBucket
               - s3:GetObject
               - s3:GetObjectVersion
-              - s3:ListMultipartUploadParts
+              - s3:ListBucketMultipartUploads
               - s3:GetBucketLocation
               - s3:PutObject
               - s3:GetObjectAcl

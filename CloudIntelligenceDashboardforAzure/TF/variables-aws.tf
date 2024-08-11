@@ -22,7 +22,7 @@ variable "EnvironmentTag" {
   default     = "Production"
 }
 variable "QuickSightServiceRole" {
-  description = "IAM Role used by QuickSight to access Amazon S3. You may not have the below service role or you may have setup a custom role."
+  description = "IAM Role used by QuickSight to access Amazon S3. You may not have the below service role or you may have setup a custom role such as CidCmdQuickSightDataSourceRole"
   type        = string
   default     = "aws-quicksight-service-role-v0"
 }
