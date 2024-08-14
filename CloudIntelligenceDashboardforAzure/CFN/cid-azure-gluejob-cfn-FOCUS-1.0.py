@@ -1,0 +1,166 @@
+# Cloud Intelligence Dashboard for Azure Glue Script - FOCUS Cost Export - CloudFormation
+
+### Glue base
+import sys
+import boto3
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+
+sc = SparkContext.getOrCreate()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+
+### Parameters fetched from Glue Job
+from awsglue.utils import getResolvedOptions
+args = getResolvedOptions(sys.argv, [
+    'JOB_NAME', 'var_raw_path', 'var_parquet_path', 'var_processed_path',
+    'var_glue_database', 'var_glue_table', 'var_bucket', 'var_raw_folder',
+    'var_processed_folder', 'var_parquet_folder', 'var_folderpath',
+    'var_azuretags', 'var_account_type', 'var_error_folder'
+])
+var_raw_path = args['var_raw_path']
+var_parquet_path = args['var_parquet_path']
+var_processed_path = args['var_processed_path']
+var_glue_database = args['var_glue_database']
+var_glue_table = args['var_glue_table']
+var_bucket = args['var_bucket']
+var_raw_folder = args['var_raw_folder']
+var_processed_folder = args['var_processed_folder']
+var_parquet_folder = args['var_parquet_folder']
+var_folderpath = args['var_folderpath']
+var_azuretags = args['var_azuretags']
+var_account_type = args['var_account_type']
+var_error_folder = args['var_error_folder']
+var_error_folder = args['var_error_folder']
+var_raw_fullpath = var_raw_path + var_folderpath
+SELECTED_TAGS = var_azuretags.split(", ")
+
+### Copy Function
+import concurrent.futures
+def copy_s3_objects(source_bucket, source_folder, destination_bucket, destination_folder):
+    s3_client = boto3.client('s3')
+    def copy_object(obj):
+        copy_source = {'Bucket': source_bucket, 'Key': obj['Key']}
+        target_key = obj['Key'].replace(source_folder, destination_folder)
+        s3_client.copy_object(Bucket=destination_bucket, Key=target_key, CopySource=copy_source, TaggingDirective='COPY')
+    # Get list of files
+    response = s3_client.list_objects(Bucket=source_bucket, Prefix=source_folder)
+    objects = response.get('Contents', [])
+    if objects:
+        # Copy files using concurrent futures
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            executor.map(copy_object, objects)
+        print("INFO: Copy process complete")
+    else:
+        print(("INFO: No files in {}, copy process skipped.").format(source_folder))
+
+### Delete Function
+def delete_s3_folder(bucket, folder):
+    s3_client = boto3.client('s3')
+    response = s3_client.list_objects(Bucket=bucket, Prefix=folder)
+    objects = response.get('Contents', [])
+    if objects:
+        delete_keys = [{'Key': obj['Key']} for obj in objects]
+        s3_client.delete_objects(Bucket=bucket, Delete={'Objects': delete_keys})
+        print("INFO: Delete process complete")
+    else:
+        print(("INFO: No files in {}, delete process skipped.").format(folder))
+
+### Read CSV and append file_path column
+import os
+from pyspark.sql.functions import input_file_name
+
+try:
+    df1 = spark.read.option("header","true").option("delimiter",",").option("escape", "\"").csv(var_raw_fullpath)
+    df1 = df1.withColumn("file_path", input_file_name())
+except Exception as e:
+    print("WARNING: Cannot read CSV file(s) in {}. Incorrect path or folder empty.".format(var_raw_fullpath))
+    print("ERROR: {}".format(e))
+    raise e
+
+### Cast datatypes for FOCUS Specification 
+### https://microsoft.github.io/finops-toolkit/data#-dataset-metadata
+
+from pyspark.sql.functions import col, to_timestamp
+from pyspark.sql.types import *
+
+try:
+        df2 = df1.withColumn("BilledCost", col("BilledCost").cast(DoubleType())) \
+            .withColumn("BillingPeriodEnd", to_timestamp(col("BillingPeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("BillingPeriodStart", to_timestamp(col("BillingPeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("ChargePeriodEnd", to_timestamp(col("ChargePeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("ChargePeriodStart", to_timestamp(col("ChargePeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("ConsumedQuantity", col("ConsumedQuantity").cast(DoubleType())) \
+            .withColumn("ContractedCost", col("ContractedCost").cast(DoubleType())) \
+            .withColumn("ContractedUnitPrice", col("ContractedUnitPrice").cast(DoubleType())) \
+            .withColumn("EffectiveCost", col("EffectiveCost").cast(DoubleType())) \
+            .withColumn("ListCost", col("ListCost").cast(DoubleType())) \
+            .withColumn("ListUnitPrice", col("ListUnitPrice").cast(DoubleType())) \
+            .withColumn("PricingQuantity", col("PricingQuantity").cast(DoubleType())) \
+            .withColumn("x_BilledCostInUsd", col("x_BilledCostInUsd").cast(DecimalType(17, 16))) \
+            .withColumn("x_BilledUnitPrice", col("x_BilledUnitPrice").cast(DecimalType(23, 22))) \
+            .withColumn("x_BillingExchangeRate", col("x_BillingExchangeRate").cast(DecimalType(17, 16))) \
+            .withColumn("x_BillingExchangeRateDate", to_timestamp(col("x_BillingExchangeRateDate"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("x_ContractedCostInUsd", col("x_ContractedCostInUsd").cast(DecimalType(23, 22))) \
+            .withColumn("x_EffectiveCostInUsd", col("x_EffectiveCostInUsd").cast(DecimalType(17, 16))) \
+            .withColumn("x_EffectiveUnitPrice", col("x_EffectiveUnitPrice").cast(DecimalType(23, 22))) \
+            .withColumn("x_ListCostInUsd", col("x_ListCostInUsd").cast(DecimalType(17, 16))) \
+            .withColumn("x_PricingBlockSize", col("x_PricingBlockSize").cast(DoubleType())) \
+            .withColumn("x_ServicePeriodEnd", to_timestamp(col("x_ServicePeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("x_ServicePeriodStart", to_timestamp(col("x_ServicePeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'"))
+except Exception as e:
+    print("WARNING: Cannot parse columns. Error in CSV file(s). Moved to error folder")
+    print("ERROR: {}".format(e))
+    raise e
+
+### Surface Azure Tags
+from pyspark.sql.functions import col, udf
+from pyspark.sql.types import ArrayType, StringType, MapType
+import json
+
+# Function handle JSON or instances where curly braces are missing from tag column.
+def transform_to_map(resource_tags):
+    if resource_tags:
+        if resource_tags.startswith('{'):
+            return dict(json.loads(resource_tags))
+        else:
+            return dict(json.loads("{" + resource_tags + "}"))
+# Create column Tags_map (transformed Tags column as map)
+tagsTransformToMapUDF = udf(lambda x:transform_to_map(x), MapType(StringType(), StringType()))
+df2 = df2.withColumn("Tags_map", tagsTransformToMapUDF(col("Tags")))
+# Create columns per selected tag with values
+for tag in SELECTED_TAGS:
+    df2 = df2.withColumn("tag-"+tag, df2.Tags_map.getItem(tag))
+
+### Create partition column
+from pyspark.sql.functions import trunc
+
+df2 = df2.withColumn("BILLING_PERIOD", trunc(df2.BillingPeriodStart, "MM"))
+
+### Create parquet files and update glue catalog
+from awsglue.dynamicframe import DynamicFrame
+
+try:
+    dyf3 = DynamicFrame.fromDF(df2, glueContext, "dyf3")
+    sink = glueContext.getSink(connection_type="s3",path=(var_parquet_path),enableUpdateCatalog=True,partitionKeys=["BILLING_PERIOD"])
+    sink.setFormat("glueparquet")
+    sink.setCatalogInfo(catalogDatabase=(var_glue_database), catalogTableName=(var_glue_table))
+    sink.writeFrame(dyf3)
+except Exception as e:
+    # If the CSV cannot be processed move to error folder
+    print("WARNING: Cannot convert file(s) to parquet. Moved to error folder if normal run")
+    print("ERROR: {}".format(e))
+    raise e
+
+### Copy CSV from raw to processed
+copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_processed_folder)
+
+### Delete CSV from raw
+delete_s3_folder(var_bucket, var_raw_folder)
+
+### Sample Jupyter Notebook tests
+# df1.select('ChargePeriodEnd','BillingPeriodStart','BillingPeriodEnd','ChargeDescription','BilledCost','Tags','file_path','BILLING_PERIOD').show(100)
+# df1.printSchema()

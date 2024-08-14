@@ -1,4 +1,4 @@
-# Cloud Intelligence Dashboard for Azure Glue Script - CloudFormation
+# Cloud Intelligence Dashboard for Azure Glue Script - Standard Cost Export - CloudFormation
 
 ### Glue base
 import sys
@@ -19,7 +19,7 @@ args = getResolvedOptions(sys.argv, [
     'JOB_NAME', 'var_raw_path', 'var_parquet_path', 'var_processed_path',
     'var_glue_database', 'var_glue_table', 'var_bucket', 'var_raw_folder',
     'var_processed_folder', 'var_parquet_folder', 'var_date_format',
-    'var_folderpath', 'var_azuretags', 'var_account_type', 'var_bulk_run', 
+    'var_folderpath', 'var_azuretags', 'var_account_type', 'var_bulk_run_ssm_name', 
     'var_error_folder', 'var_lambda01_name'
 ])
 var_raw_path = args['var_raw_path']
@@ -35,11 +35,10 @@ var_date_format = args['var_date_format']
 var_folderpath = args['var_folderpath']
 var_azuretags = args['var_azuretags']
 var_account_type = args['var_account_type']
-var_bulk_run = args['var_bulk_run']
-var_error_folder = args['var_error_folder']
+var_bulk_run_ssm_name = args['var_bulk_run_ssm_name']
 var_error_folder = args['var_error_folder']
 var_lambda01_name = args['var_lambda01_name']
-var_raw_fullpath = var_raw_path +var_folderpath
+var_raw_fullpath = var_raw_path + var_folderpath
 SELECTED_TAGS = var_azuretags.split(", ")
 
 ### Copy Function
@@ -76,7 +75,7 @@ def delete_s3_folder(bucket, folder):
 ### Bulk Run - process latest object for each month
 from datetime import datetime
 ssm_client = boto3.client('ssm')
-
+var_bulk_run = ssm_client.get_parameter(Name=args['var_bulk_run_ssm_name'])['Parameter']['Value']
 if var_bulk_run == 'true':
     print("INFO: Bulk run is set to {}, starting bulk run".format(var_bulk_run))
     # Copy CSV from raw to processed
@@ -143,7 +142,8 @@ if var_bulk_run == 'true':
         print("ERROR: {}".format(e))
         pass
     # Change bulk_run ssm parameter to false
-    ssm_client.put_parameter(Name='cidazure-var_bulk_run',Value='false',Type='String',Overwrite=True)
+    ssm_client.put_parameter(Name=args['var_bulk_run_ssm_name'],Value='false',Type='String',Overwrite=True)
+
 else:
     print("INFO: Bulk run is set to {}, continuing with normal run".format(var_bulk_run))
 
@@ -182,8 +182,7 @@ df1 = df1.withColumnRenamed("accountName", "AccountName") \
          .withColumnRenamed("unitOfMeasure", "UnitOfMeasure")
 
 ### Identify account type parse dates and cast datatypes
-from pyspark.sql.functions import to_date
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, to_date
 from pyspark.sql.types import *
 
 try:
