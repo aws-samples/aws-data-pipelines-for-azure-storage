@@ -119,11 +119,6 @@ except Exception as e:
     print("ERROR: {}".format(e))
     raise e
 
-### Create partition column
-from pyspark.sql.functions import trunc
-
-df2 = df2.withColumn("BILLING_PERIOD", trunc(df2.BillingPeriodStart, "MM"))
-
 ### Surface Azure Tags
 from pyspark.sql.functions import col, udf
 from pyspark.sql.types import ArrayType, StringType, MapType
