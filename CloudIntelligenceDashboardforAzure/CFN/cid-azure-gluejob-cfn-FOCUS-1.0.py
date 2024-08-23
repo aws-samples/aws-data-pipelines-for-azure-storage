@@ -148,6 +148,28 @@ from pyspark.sql.functions import trunc
 
 df2 = df2.withColumn("BILLING_PERIOD", trunc(df2.BillingPeriodStart, "MM"))
 
+### Parquet clean up to avoid duplication.
+from pyspark.sql.functions import date_trunc
+
+try:
+    s3 = boto3.client('s3')
+    response = s3.list_objects_v2(Bucket=var_bucket, Prefix=var_parquet_folder)
+    if 'Contents' in response:
+        id_months = df2.select(date_trunc("month", "BILLING_PERIOD")).distinct()
+        new_months = [var_parquet_path + 'BILLING_PERIOD=' + f"{row[0].strftime('%Y-%m-%d')}" for row in id_months.collect()]
+        # Remove Parquet files, older than 12 hours, that match the months identified above. Use 'retentionPeriod': 0.00069444444 for testing sets to 1 minute
+        for path in new_months:
+            glueContext.purge_s3_path(path, {'retentionPeriod': 0.00069444444})
+    else:
+        print("INFO: Parquet folder does not exist. No files to deduplicate")
+except Exception as e:
+    # If CSV cannot be processed move to error folder
+    copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
+    delete_s3_folder(var_bucket, var_raw_folder)
+    print("WARNING: Cannot deduplicate. Error in CSV file(s). Moved to error folder")
+    print("ERROR: {}".format(e))
+    raise e
+
 ### Create parquet files and update glue catalog
 from awsglue.dynamicframe import DynamicFrame
 
@@ -159,6 +181,8 @@ try:
     sink.writeFrame(dyf3)
 except Exception as e:
     # If the CSV cannot be processed move to error folder
+    copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
+    delete_s3_folder(var_bucket, var_raw_folder)
     print("WARNING: Cannot convert file(s) to parquet. Moved to error folder if normal run")
     print("ERROR: {}".format(e))
     raise e
