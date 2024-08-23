@@ -84,15 +84,15 @@ except Exception as e:
 ### Cast datatypes for FOCUS Specification 
 ### https://microsoft.github.io/finops-toolkit/data#-dataset-metadata
 
-from pyspark.sql.functions import col, to_timestamp
+from pyspark.sql.functions import col, to_timestamp, date_format
 from pyspark.sql.types import *
 
 try:
         df2 = df1.withColumn("BilledCost", col("BilledCost").cast(DoubleType())) \
-            .withColumn("BillingPeriodEnd", to_timestamp(col("BillingPeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'")) \
-            .withColumn("BillingPeriodStart", to_timestamp(col("BillingPeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'")) \
-            .withColumn("ChargePeriodEnd", to_timestamp(col("ChargePeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'")) \
-            .withColumn("ChargePeriodStart", to_timestamp(col("ChargePeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("BillingPeriodEnd", date_format(to_timestamp(col("BillingPeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd")) \
+            .withColumn("BillingPeriodStart", date_format(to_timestamp(col("BillingPeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd")) \
+            .withColumn("ChargePeriodEnd", date_format(to_timestamp(col("ChargePeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd")) \
+            .withColumn("ChargePeriodStart", date_format(to_timestamp(col("ChargePeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd")) \
             .withColumn("ConsumedQuantity", col("ConsumedQuantity").cast(DoubleType())) \
             .withColumn("ContractedCost", col("ContractedCost").cast(DoubleType())) \
             .withColumn("ContractedUnitPrice", col("ContractedUnitPrice").cast(DoubleType())) \
@@ -103,18 +103,26 @@ try:
             .withColumn("x_BilledCostInUsd", col("x_BilledCostInUsd").cast(DecimalType(17, 16))) \
             .withColumn("x_BilledUnitPrice", col("x_BilledUnitPrice").cast(DecimalType(23, 22))) \
             .withColumn("x_BillingExchangeRate", col("x_BillingExchangeRate").cast(DecimalType(17, 16))) \
-            .withColumn("x_BillingExchangeRateDate", to_timestamp(col("x_BillingExchangeRateDate"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("x_BillingExchangeRateDate", date_format(to_timestamp(col("x_BillingExchangeRateDate"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd")) \
             .withColumn("x_ContractedCostInUsd", col("x_ContractedCostInUsd").cast(DecimalType(23, 22))) \
             .withColumn("x_EffectiveCostInUsd", col("x_EffectiveCostInUsd").cast(DecimalType(17, 16))) \
             .withColumn("x_EffectiveUnitPrice", col("x_EffectiveUnitPrice").cast(DecimalType(23, 22))) \
             .withColumn("x_ListCostInUsd", col("x_ListCostInUsd").cast(DecimalType(17, 16))) \
             .withColumn("x_PricingBlockSize", col("x_PricingBlockSize").cast(DoubleType())) \
-            .withColumn("x_ServicePeriodEnd", to_timestamp(col("x_ServicePeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'")) \
-            .withColumn("x_ServicePeriodStart", to_timestamp(col("x_ServicePeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'"))
+            .withColumn("x_ServicePeriodEnd", date_format(to_timestamp(col("x_ServicePeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd")) \
+            .withColumn("x_ServicePeriodStart", date_format(to_timestamp(col("x_ServicePeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd"))
 except Exception as e:
+    # If the CSV cannot be processed move to error folder
+    copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
+    delete_s3_folder(var_bucket, var_raw_folder)
     print("WARNING: Cannot parse columns. Error in CSV file(s). Moved to error folder")
     print("ERROR: {}".format(e))
     raise e
+
+### Create partition column
+from pyspark.sql.functions import trunc
+
+df2 = df2.withColumn("BILLING_PERIOD", trunc(df2.BillingPeriodStart, "MM"))
 
 ### Surface Azure Tags
 from pyspark.sql.functions import col, udf
