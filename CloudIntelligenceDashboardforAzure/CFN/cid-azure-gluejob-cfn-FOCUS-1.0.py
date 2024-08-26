@@ -131,12 +131,12 @@ def transform_to_map(resource_tags):
             return dict(json.loads(resource_tags))
         else:
             return dict(json.loads("{" + resource_tags + "}"))
-# Create column Tags_map (transformed Tags column as map)
+# Transform Tags column as map)
 tagsTransformToMapUDF = udf(lambda x:transform_to_map(x), MapType(StringType(), StringType()))
-df2 = df2.withColumn("Tags_map", tagsTransformToMapUDF(col("Tags")))
+df2 = df2.withColumn("Tags", tagsTransformToMapUDF(col("Tags")))
 # Create columns per selected tag with values
 for tag in SELECTED_TAGS:
-    df2 = df2.withColumn("tag-"+tag, df2.Tags_map.getItem(tag))
+    df2 = df2.withColumn("tag-"+tag, df2.Tags.getItem(tag))
 
 ### Create partition column
 from pyspark.sql.functions import trunc
