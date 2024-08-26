@@ -427,7 +427,7 @@ Resources:
                   - ssm:GetParameter
                   - ssm:PutParameter
                 Resource:
-                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cidazure*
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${PrefixCode}smp${EnvironmentCode}cidazure-var_bulk_run
       Tags:
         - Key: Owner
           Value: !Sub ${OwnerTag}
