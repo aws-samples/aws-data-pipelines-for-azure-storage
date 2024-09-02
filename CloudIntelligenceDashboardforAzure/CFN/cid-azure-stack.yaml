@@ -1115,6 +1115,211 @@ Resources:
             -- Tag extraction section END
             x_ResourceGroupName
       WorkGroup: !Ref AthenaWorkgroup
+  AthenaQueryFOCUSResourceView:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database: customer_cur_data
+      Description: Cloud Intelligence Dashboard for Azure FOCUS export Athena Named Query Resource View
+      Name: !Sub ${PrefixCode}atq${EnvironmentCode}cidazurefocusresourceview
+      QueryString: !Sub |
+        CREATE OR REPLACE VIEW "focus_resource_view_azure" AS
+        SELECT
+            AvailabilityZone,
+            BillingAccountId,
+            BillingAccountName,
+            BillingCurrency,
+            CAST(BillingPeriodStart AS DATE) AS BillingPeriodStart,
+            ChargeCategory,
+            ChargeClass,
+            ChargeDescription,
+            ChargeFrequency,
+            CAST(
+                CASE 
+                    WHEN date_trunc('month', ChargePeriodStart) >= date_trunc('month', current_timestamp) - INTERVAL '3' MONTH 
+                    THEN date_trunc('day', ChargePeriodStart) 
+                    ELSE date_trunc('month', ChargePeriodStart) 
+                END AS DATE
+            ) AS ChargePeriodStart,
+            CommitmentDiscountCategory,
+            CommitmentDiscountId,
+            CommitmentDiscountName,
+            CommitmentDiscountType,
+            CommitmentDiscountStatus,
+            ConsumedUnit,
+            InvoiceIssuerName,
+            PricingCategory,
+            PricingUnit,
+            ProviderName,
+            PublisherName,
+            RegionId,
+            RegionName,
+            ResourceId,
+            ResourceName,
+            ResourceType,
+            ServiceCategory,
+            ServiceName,
+            SkuId,
+            SkuPriceId,
+            SubAccountId,
+            SubAccountName,
+            Tags,
+            -- Extract specific tag values from the Tags MAP column 1/4
+            TRY(element_at(Tags, 'Customer')) AS tag_Customer,
+            TRY(element_at(Tags, 'Environment')) AS tag_Environment,
+            TRY(element_at(Tags, 'Project')) AS tag_Project,
+            -- Tag extraction section END
+            billing_period,
+            'Azure Only Field' AS x_ResourceGroupName,
+            SUM(ContractedUnitPrice) AS ContractedUnitPrice,
+            SUM(ListUnitPrice) AS ListUnitPrice,
+            SUM(BilledCost) AS BilledCost,
+            SUM(ContractedCost) AS ContractedCost,
+            SUM(EffectiveCost) AS EffectiveCost,
+            SUM(ListCost) AS ListCost,
+            SUM(ConsumedQuantity) AS ConsumedQuantity,
+            SUM(PricingQuantity) AS PricingQuantity
+        FROM
+            -- Default AWS FOCUS database name and table used below. Change if necessary
+            "cid_data_export"."focus"
+        WHERE 
+            (current_date - INTERVAL '30' DAY) <= ChargePeriodStart 
+            AND ResourceId <> '' 
+            AND CAST(CONCAT(billing_period, '-01') AS DATE) >= date_trunc('month', current_date - INTERVAL '30' DAY)
+        GROUP BY 
+            AvailabilityZone,
+            BillingAccountId,
+            BillingAccountName,
+            BillingCurrency,
+            BillingPeriodStart,
+            ChargeCategory,
+            ChargeClass,
+            ChargeDescription,
+            ChargeFrequency,
+            ChargePeriodStart,
+            CommitmentDiscountCategory,
+            CommitmentDiscountId,
+            CommitmentDiscountName,
+            CommitmentDiscountType,
+            CommitmentDiscountStatus,
+            ConsumedUnit,
+            InvoiceIssuerName,
+            PricingCategory,
+            PricingUnit,
+            ProviderName,
+            PublisherName,
+            RegionId,
+            RegionName,
+            ResourceId,
+            ResourceName,
+            ResourceType,
+            ServiceCategory,
+            ServiceName,
+            SkuId,
+            SkuPriceId,
+            SubAccountId,
+            SubAccountName,
+            Tags,
+            -- Extract specific tag values from the Tags MAP column 2/4
+            TRY(element_at(Tags, 'Customer')),
+            TRY(element_at(Tags, 'Environment')),
+            TRY(element_at(Tags, 'Project')),
+            -- Tag extraction section END
+            billing_period,
+            'Azure Only Field'
+            
+        UNION 
+
+        SELECT
+            NULL AS AvailabilityZone,
+            BillingAccountId,
+            BillingAccountName,
+            BillingCurrency,
+            BillingPeriodStart,
+            ChargeCategory,
+            ChargeClass,
+            ChargeDescription,
+            ChargeFrequency,
+            ChargePeriodStart,
+            CommitmentDiscountCategory,
+            CommitmentDiscountId,
+            CommitmentDiscountName,
+            CommitmentDiscountType,
+            CommitmentDiscountStatus,
+            ConsumedUnit,
+            InvoiceIssuerName,
+            PricingCategory,
+            PricingUnit,
+            ProviderName,
+            PublisherName,
+            RegionId,
+            RegionName,
+            ResourceId,
+            ResourceName,
+            ResourceType,
+            ServiceCategory,
+            ServiceName,
+            SkuId,
+            SkuPriceId,
+            SubAccountId,
+            SubAccountName,
+            Tags,
+            -- Extract specific tag values from the Tags MAP column 3/4
+            TRY(element_at(Tags, 'Customer')) AS tag_Customer,
+            TRY(element_at(Tags, 'Environment')) AS tag_Environment,
+            TRY(element_at(Tags, 'Project')) AS tag_Project,
+            -- Tag extraction section END
+            '' AS billing_period,
+            x_ResourceGroupName,
+            SUM(ContractedUnitPrice) AS ContractedUnitPrice,
+            SUM(ListUnitPrice) AS ListUnitPrice,
+            SUM(BilledCost) AS BilledCost,
+            SUM(ContractedCost) AS ContractedCost,
+            SUM(EffectiveCost) AS EffectiveCost,
+            SUM(ListCost) AS ListCost,
+            SUM(ConsumedQuantity) AS ConsumedQuantity,
+            SUM(PricingQuantity) AS PricingQuantity
+        FROM
+            "${GlueDatabase}"."${GlueTable}"
+        GROUP BY 
+            BillingAccountId,
+            BillingAccountName,
+            BillingCurrency,
+            BillingPeriodStart,
+            ChargeCategory,
+            ChargeClass,
+            ChargeDescription,
+            ChargeFrequency,
+            ChargePeriodStart,
+            CommitmentDiscountCategory,
+            CommitmentDiscountId,
+            CommitmentDiscountName,
+            CommitmentDiscountType,
+            CommitmentDiscountStatus,
+            ConsumedUnit,
+            InvoiceIssuerName,
+            PricingCategory,
+            PricingUnit,
+            ProviderName,
+            PublisherName,
+            RegionId,
+            RegionName,
+            ResourceId,
+            ResourceName,
+            ResourceType,
+            ServiceCategory,
+            ServiceName,
+            SkuId,
+            SkuPriceId,
+            SubAccountId,
+            SubAccountName,
+            Tags,
+            -- Extract specific tag values from the Tags MAP column 4/4
+            TRY(element_at(Tags, 'Customer')),
+            TRY(element_at(Tags, 'Environment')),
+            TRY(element_at(Tags, 'Project')),
+            -- Tag extraction section END
+            x_ResourceGroupName
+      WorkGroup: !Ref AthenaWorkgroup
 
   ### Create Lambda Functions
   LambdaLayerVersionIdentity:
