@@ -716,6 +716,7 @@ Resources:
         --var_folderpath: !Sub ${AzureFolderPath}
         --var_azuretags: !GetAtt SMParameterVarAzureTags.Value
         --var_account_type: !Sub ${AccountType}
+        --var_bulk_run_ssm_name: !Ref SMParameterVarBulkRun
         --var_error_folder: azureciderrorfocus
       SecurityConfiguration: !Ref GlueSecurity
       Tags:
@@ -825,7 +826,7 @@ Resources:
           var_folderpath = '${AzureFolderPath}'
           var_azuretags = '{{resolve:ssm:${SMParameterVarAzureTags}}}'
           var_account_type = '${AccountType}'
-          var_bulk_run_ssm_name = '${SMParameterVarBulkRun}'
+          var_bulk_run_ssm_name = '${PrefixCode}smp${EnvironmentCode}cidazure-var_bulk_run'
           var_error_folder = 'azureciderror'
           var_lambda01_name = '${LambdaFunction01}'
           var_raw_fullpath = var_raw_path + var_folderpath
@@ -855,6 +856,7 @@ Resources:
           var_parquet_folder = 'azurecidparquetfocus'
           var_folderpath = '${AzureFolderPath}'
           var_azuretags = '{{resolve:ssm:${SMParameterVarAzureTags}}}'
+          var_bulk_run_ssm_name = '${PrefixCode}smp${EnvironmentCode}cidazure-var_bulk_run'
           var_account_type = '${AccountType}'
           var_error_folder = 'azureciderrorfocus'
           var_lambda01_name = '${LambdaFunction01}'
