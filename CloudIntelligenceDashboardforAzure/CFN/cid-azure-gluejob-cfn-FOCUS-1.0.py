@@ -19,7 +19,7 @@ args = getResolvedOptions(sys.argv, [
     'JOB_NAME', 'var_raw_path', 'var_parquet_path', 'var_processed_path',
     'var_glue_database', 'var_glue_table', 'var_bucket', 'var_raw_folder',
     'var_processed_folder', 'var_parquet_folder', 'var_folderpath',
-    'var_azuretags', 'var_account_type', 'var_bulk_run_ssm_name', 'var_error_folder'
+    'var_azuretags', 'var_account_type', 'var_bulk_run_ssm_name', 'var_error_folder', 'var_lambda01_name'
 ])
 var_raw_path = args['var_raw_path']
 var_parquet_path = args['var_parquet_path']
@@ -35,6 +35,7 @@ var_azuretags = args['var_azuretags']
 var_account_type = args['var_account_type']
 var_bulk_run_ssm_name = args['var_bulk_run_ssm_name']
 var_error_folder = args['var_error_folder']
+var_lambda01_name = args['var_lambda01_name']
 var_raw_fullpath = var_raw_path + var_folderpath
 SELECTED_TAGS = var_azuretags.split(", ")
 

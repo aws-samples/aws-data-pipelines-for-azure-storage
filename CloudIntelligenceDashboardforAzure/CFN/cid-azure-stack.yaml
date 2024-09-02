@@ -718,6 +718,7 @@ Resources:
         --var_account_type: !Sub ${AccountType}
         --var_bulk_run_ssm_name: !Ref SMParameterVarBulkRun
         --var_error_folder: azureciderrorfocus
+        --var_lambda01_name: !Sub ${LambdaFunction01}
       SecurityConfiguration: !Ref GlueSecurity
       Tags:
         Customer: !Sub ${OwnerTag}
