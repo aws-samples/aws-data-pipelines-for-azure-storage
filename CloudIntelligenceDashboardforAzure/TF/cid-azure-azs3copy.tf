@@ -724,7 +724,7 @@ resource "aws_lambda_permission" "LambdaPermissionLargeFileRecomb" {
 resource "aws_cloudwatch_event_rule" "ScheduledRule" {
   name                = format("%s%s%s%s", var.PrefixCode, "evr", var.EnvironmentCode, "cidazure")
   description         = "Cloud Intelligence Dashboard for Azure Scheduled pull from Azure blob storage"
-  is_enabled          = true
+  state               = "ENABLED"
   role_arn            = aws_iam_role.EventBridgeIAM.arn
   schedule_expression = var.AzureCopySchedule
 

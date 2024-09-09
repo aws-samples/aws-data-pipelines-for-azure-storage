@@ -8,15 +8,22 @@ EnvironmentTag        = "development"
 QuickSightServiceRole = "aws-quicksight-service-role-v0"
 
 # Microsoft Azure Settings
-# NOTE: Not Required when using Azure Example templates
-AccountType        = "MCA"
+ START: Not Required when using Azure Example templates
 AzureBlobURL       = "https://<mystorageaccount>.blob.core.windows.net/"
 AzureApplicationID = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 AzureTenantID      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 AzureSecretKey     = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# END: Not Required when using Azure Example templates
+AccountType        = "MCA"
 AzureDateFormat    = "MM/dd/yyyy"
+#AzureFolderPath    = "directory/*"
 AzureFolderPath    = "directory/*"
-AzureTags          = "'Environment', 'CostCenter', 'System', 'Department'"
+AzureTags          = "Environment, CostCenter, System, Department"
+
+AzureOverwritedataEnabled = "false"
+
+# Export Settings
+ExportType = "Standard"
 
 # Data Copy Settings
 AzureCopySchedule     = "cron(0 3 * * ? *)"

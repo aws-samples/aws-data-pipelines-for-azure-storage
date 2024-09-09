@@ -93,7 +93,7 @@ resource "aws_iam_role_policy" "GlueIAM" {
         ]
         Effect = "Allow"
         Resource = [
-          "arn:aws:ssm:${var.Region}:${data.aws_caller_identity.current.account_id}:parameter/cidazure*"
+          "arn:aws:ssm:${var.Region}:${data.aws_caller_identity.current.account_id}:parameter/${var.PrefixCode}smp${var.EnvironmentCode}-cidazure-var_bulk_run"
         ]
       }
     ]
@@ -161,28 +161,17 @@ resource "aws_iam_role_policy" "disablemultipartpolicy" {
   })
 }
 
-### Upload Glue Script
+### Upload Glue Scripts
 resource "aws_s3_object" "cidazuregluepy" {
-  bucket = aws_s3_bucket.S3Bucket.id
-  key    = "scripts/cid-azure-gluejob-tf.py"
-  content = templatefile("cid-azure-gluejob-tf.py",
-    {
-      var_account_type     = var.AccountType
-      var_bucket           = aws_s3_bucket.S3Bucket.id
-      var_date_format      = var.AzureDateFormat
-      var_error_folder     = "azureciderror"
-      var_glue_database    = aws_glue_catalog_database.cidazure.name
-      var_glue_table       = aws_glue_catalog_table.cidazure.name
-      var_parquet_folder   = "azurecidparquet"
-      var_parquet_path     = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidparquet/"
-      var_processed_folder = "azurecidprocessed"
-      var_processed_path   = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidprocessed/"
-      var_raw_folder       = "azurecidraw"
-      var_raw_path         = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidraw/${var.AzureFolderPath}"
-      var_lambda01_name    = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda01")
-      SELECTED_TAGS        = var.AzureTags
-    }
-  )
+  bucket  = aws_s3_bucket.S3Bucket.id
+  key     = "scripts/cid-azure-gluejob-tf.py"
+  content = templatefile("../CFN/cid-azure-gluejob-cfn.py",{})
+}
+
+resource "aws_s3_object" "cidazuregluepyfocus" {
+  bucket  = aws_s3_bucket.S3Bucket.id
+  key     = "scripts/cid-azure-gluejob-tf-FOCUS-1.0.py"
+  content = templatefile("../CFN/cid-azure-gluejob-cfn-FOCUS-1.0.py",{})
 }
 
 ### Create Glue Resources
@@ -228,6 +217,7 @@ resource "aws_glue_catalog_table" "cidazure" {
 }
 
 resource "aws_glue_job" "cidazure" {
+  count                  = var.ExportType == "Standard" ? 1 : 0
   name                   = format("%s%s%s%s", var.PrefixCode, "glj", var.EnvironmentCode, "cidazure")
   description            = "Glue ETL job for Azure Cloud Intelligence Dashboard"
   role_arn               = aws_iam_role.GlueIAM.arn
@@ -251,6 +241,22 @@ resource "aws_glue_job" "cidazure" {
     "--enable-job-insights"     = "true"
     "--enable-auto-scaling"     = "true"
     "--job-bookmark-option"     = "job-bookmark-enable"
+    "--var_raw_path"            = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidraw/"
+    "--var_parquet_path"        = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidparquet/"
+    "--var_processed_path"      = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidprocessed/"
+    "--var_glue_database"       = aws_glue_catalog_database.cidazure.name
+    "--var_glue_table"          = aws_glue_catalog_table.cidazure.name
+    "--var_bucket"              = aws_s3_bucket.S3Bucket.id
+    "--var_raw_folder"          = "azurecidraw"
+    "--var_processed_folder"    = "azurecidprocessed"
+    "--var_parquet_folder"      = "azurecidparquet"
+    "--var_date_format"         = var.AzureDateFormat
+    "--var_folderpath"          = var.AzureFolderPath
+    "--var_azuretags"           = var.AzureTags
+    "--var_account_type"        = var.AccountType
+    "--var_bulk_run_ssm_name"   = "${aws_ssm_parameter.varbulkrun.name}"
+    "--var_error_folder"        = "azureciderror"
+    "--var_lambda01_name"       = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda01")
   }
 
   tags = {
@@ -281,13 +287,14 @@ resource "aws_glue_security_configuration" "cidazure" {
 }
 
 resource "aws_glue_trigger" "cidazure" {
+  count       = var.ExportType == "Standard" ? 1 : 0
   name        = format("%s%s%s%s", var.PrefixCode, "glt", var.EnvironmentCode, "cidazure")
   description = "Cloud Intelligence Dashboard for Azure Glue ETL job schedule"
   schedule    = var.GlueCopySchedule
   type        = "SCHEDULED"
 
   actions {
-    job_name = aws_glue_job.cidazure.name
+    job_name = aws_glue_job.cidazure[count.index].name
   }
 
   tags = {
@@ -296,7 +303,72 @@ resource "aws_glue_trigger" "cidazure" {
   }
 }
 
-resource "aws_ssm_parameter" "DashboardDeploy" {
+resource "aws_glue_job" "cidazurefocus" {
+  count                  = var.ExportType == "FOCUS" ? 1 : 0
+  name                   = format("%s%s%s%s", var.PrefixCode, "glj", var.EnvironmentCode, "cidazurefocus")
+  description            = "Glue ETL job for Azure Cloud Intelligence Dashboard"
+  role_arn               = aws_iam_role.GlueIAM.arn
+  glue_version           = "4.0"
+  worker_type            = "G.1X"
+  number_of_workers      = 5
+  max_retries            = 0
+  timeout                = 60
+  security_configuration = aws_glue_security_configuration.cidazure.name
+  command {
+    script_location = "s3://${aws_s3_bucket.S3Bucket.bucket}/${aws_s3_object.cidazuregluepyfocus.key}"
+    python_version  = "3"
+  }
+
+  default_arguments = {
+    "--enable-glue-datacatalog" = "true"
+    "--enable-spark-ui"         = "true"
+    "--library-set"             = "analytics"
+    "--enable-metrics"          = ""
+    "--job-language"            = "python"
+    "--enable-job-insights"     = "true"
+    "--enable-auto-scaling"     = "true"
+    "--job-bookmark-option"     = "job-bookmark-enable"
+    "--var_raw_path"            = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidraw/"
+    "--var_parquet_path"        = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidparquetfocus/"
+    "--var_processed_path"      = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidprocessedfocus/"
+    "--var_glue_database"       = aws_glue_catalog_database.cidazure.name
+    "--var_glue_table"          = aws_glue_catalog_table.cidazure.name
+    "--var_bucket"              = aws_s3_bucket.S3Bucket.id
+    "--var_raw_folder"          = "azurecidraw"
+    "--var_processed_folder"    = "azurecidprocessedfocus"
+    "--var_parquet_folder"      = "azurecidparquetfocus"
+    "--var_date_format"         = var.AzureDateFormat
+    "--var_folderpath"          = var.AzureFolderPath
+    "--var_account_type"        = var.AccountType
+    "--var_bulk_run_ssm_name"   = "${aws_ssm_parameter.varbulkrun.name}"
+    "--var_error_folder"        = "azureciderrorfocus"
+    "--var_lambda01_name"       = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda01")
+  }
+
+  tags = {
+    Name  = format("%s%s%s%s", var.PrefixCode, "glj", var.EnvironmentCode, "cidazurefocus")
+    rtype = "data"
+  }
+}
+
+resource "aws_glue_trigger" "cidazurefocus" {
+  count       = var.ExportType == "FOCUS" ? 1 : 0
+  name        = format("%s%s%s%s", var.PrefixCode, "glt", var.EnvironmentCode, "cidazure")
+  description = "Cloud Intelligence Dashboard for Azure Glue ETL job schedule"
+  schedule    = var.GlueCopySchedule
+  type        = "SCHEDULED"
+
+  actions {
+    job_name = aws_glue_job.cidazurefocus[count.index].name
+  }
+
+  tags = {
+    Name  = format("%s%s%s%s", var.PrefixCode, "glt", var.EnvironmentCode, "cidazure")
+    rtype = "data"
+  }
+}
+
+resource "aws_ssm_parameter" "dashboarddeploy" {
   name        = format("%s%s%s%s", var.PrefixCode, "smp", var.EnvironmentCode, "-cidazure-deploy_dashboard_command")
   type        = "String"
   value       = "cid-cmd deploy --resources https://raw.githubusercontent.com/aws-samples/aws-data-pipelines-for-azure-storage/main/CloudIntelligenceDashboardforAzure/CFN/cid-azure-dashboard.yaml --customer ${var.PrefixCode} --environment ${var.EnvironmentCode} --athena-database ${aws_glue_catalog_database.cidazure.name} --share-method account --athena-workgroup ${aws_athena_workgroup.cidazure.name} --quicksight-datasource-id AWSCIDforAzure --source-table ${aws_glue_catalog_table.cidazure.name} --dashboard-id ${var.PrefixCode}-${var.EnvironmentCode}-azure-cost --quicksight-datasource-role ${var.QuickSightServiceRole}"
@@ -304,23 +376,83 @@ resource "aws_ssm_parameter" "DashboardDeploy" {
 
   tags = {
     Name  = format("%s%s%s%s", var.PrefixCode, "smp", var.EnvironmentCode, "-cidazure-deploy_dashboard_command")
-    rtype = "data"
+    rtype = "parameter"
   }
 }
 
 resource "aws_ssm_parameter" "varbulkrun" {
-  name        = "cidazure-var_bulk_run"
+  name        = format("%s%s%s%s", var.PrefixCode, "smp", var.EnvironmentCode, "-cidazure-var_bulk_run")
   type        = "String"
-  value       = "true"
+  value       = var.AzureOverwritedataEnabled == "true" ? "false" : "true"
   description = "Cloud Intelligence Dashboard for Azure parameter. Set to true (lowercase t) if this is the first data copy or you are reprocessing, otherwise false."
 
   tags = {
     Name  = format("%s%s%s%s", var.PrefixCode, "smp", var.EnvironmentCode, "-cidazure-var_bulk_run")
-    rtype = "data"
+    rtype = "parameter"
   }
   # Ensures the bulkrun parameter is not overwritten with subsequent applies
   lifecycle {
-    ignore_changes = [ value ]
+    ignore_changes = [value]
+  }
+}
+
+resource "aws_ssm_parameter" "gluenotebookargs" {
+  name        = format("%s%s%s%s", var.PrefixCode, "smp", var.EnvironmentCode, "-cidazure-gluenotebookargs")
+  type        = "String"
+  value       = <<EOF
+var_raw_path = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidraw/"
+var_parquet_path = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidparquet/"
+var_processed_path = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidprocessed/"
+var_glue_database = "${aws_glue_catalog_database.cidazure.name}"
+var_glue_table = "${aws_glue_catalog_table.cidazure.name}"
+var_bucket = "${aws_s3_bucket.S3Bucket.id}"
+var_raw_folder = "azurecidraw"
+var_processed_folder = "azurecidprocessed"
+var_parquet_folder = "azurecidparquet"
+var_date_format = "${var.AzureDateFormat}"
+var_folderpath = "${var.AzureFolderPath}"
+var_azuretags = "${var.AzureTags}"
+var_account_type = "${var.AccountType}"
+var_bulk_run_ssm_name = "${aws_ssm_parameter.varbulkrun.name}"
+var_error_folder = "azureciderror"
+var_lambda01_name = "${aws_lambda_function.LambdaFunction01.function_name}"
+var_raw_fullpath = var_raw_path + var_folderpath
+SELECTED_TAGS = var_azuretags.split(", ")
+EOF
+  description = "Cloud Intelligence Dashboard for Azure parameters. Used to setup Glue Notebook parameters for interactive sessions."
+
+  tags = {
+    Name  = format("%s%s%s%s", var.PrefixCode, "smp", var.EnvironmentCode, "-cidazure-gluenotebookargs")
+    rtype = "parameter"
+  }
+}
+
+resource "aws_ssm_parameter" "gluenotebookargsfocus" {
+  name        = format("%s%s%s%s", var.PrefixCode, "smp", var.EnvironmentCode, "-cidazure-gluenotebookargsfocus")
+  type        = "String"
+  value       = <<EOF
+var_raw_path = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidraw/"
+var_parquet_path = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidparquetfocus/"
+var_processed_path = "s3://${aws_s3_bucket.S3Bucket.bucket}/azurecidprocessedfocus/"
+var_glue_database = "${aws_glue_catalog_database.cidazure.name}"
+var_glue_table = "${aws_glue_catalog_table.cidazure.name}"
+var_bucket = "${aws_s3_bucket.S3Bucket.id}"
+var_raw_folder = "azurecidraw"
+var_processed_folder = "azurecidprocessedfocus"
+var_parquet_folder = "azurecidparquetfocus"
+var_date_format = "${var.AzureDateFormat}"
+var_folderpath = "${var.AzureFolderPath}"
+var_account_type = "${var.AccountType}"
+var_bulk_run_ssm_name = "${aws_ssm_parameter.varbulkrun.name}"
+var_error_folder = "azureciderrorfocus"
+var_lambda01_name = "${aws_lambda_function.LambdaFunction01.function_name }"
+var_raw_fullpath = var_raw_path + var_folderpath
+EOF
+  description = "Cloud Intelligence Dashboard for Azure parameters. Used to setup Glue Notebook parameters with FOCUS specification for interactive sessions."
+
+  tags = {
+    Name  = format("%s%s%s%s", var.PrefixCode, "smp", var.EnvironmentCode, "-cidazure-gluenotebookargsfocus")
+    rtype = "parameter"
   }
 }
 
@@ -353,8 +485,34 @@ resource "aws_athena_workgroup" "cidazure" {
 ### Generate Athena saved query. named query is for reference only and not used as part of automation
 resource "aws_athena_named_query" "cidazure" {
   name        = format("%s%s%s%s", var.PrefixCode, "atq", var.EnvironmentCode, "cidazure")
-  description = "Cloud Intelligence Dashboard for Azure Athena Named Query"
+  description = "Cloud Intelligence Dashboard for Azure standard export Athena Named Query"
   workgroup   = aws_athena_workgroup.cidazure.id
   database    = aws_glue_catalog_database.cidazure.name
   query       = "CREATE OR REPLACE VIEW ${aws_glue_catalog_table.cidazure.name}_athena_view AS SELECT * FROM ${aws_glue_catalog_table.cidazure.name} WHERE month >= DATE(to_iso8601(current_date - interval '6' month))"
+}
+
+resource "aws_athena_named_query" "cidazurefocussummary" {
+  name        = format("%s%s%s%s", var.PrefixCode, "atq", var.EnvironmentCode, "cidazure-focus-summary-view")
+  description = "Cloud Intelligence Dashboard for Azure FOCUS export Athena Named Query Summary View"
+  workgroup   = aws_athena_workgroup.cidazure.id
+  database    = aws_glue_catalog_database.cidazure.name
+  query = templatefile("cid-azure-focus_summary_view.sql",
+    {
+      var_glue_database = aws_glue_catalog_database.cidazure.name
+      var_glue_table    = aws_glue_catalog_table.cidazure.name
+    }
+  )
+}
+
+resource "aws_athena_named_query" "cidazurefocusresource" {
+  name        = format("%s%s%s%s", var.PrefixCode, "atq", var.EnvironmentCode, "cidazure-focus-resource-view")
+  description = "Cloud Intelligence Dashboard for Azure FOCUS export Athena Named Query Resource View"
+  workgroup   = aws_athena_workgroup.cidazure.id
+  database    = aws_glue_catalog_database.cidazure.name
+  query = templatefile("cid-azure-focus_resource_view.sql",
+    {
+      var_glue_database = aws_glue_catalog_database.cidazure.name
+      var_glue_table    = aws_glue_catalog_table.cidazure.name
+    }
+  )
 }

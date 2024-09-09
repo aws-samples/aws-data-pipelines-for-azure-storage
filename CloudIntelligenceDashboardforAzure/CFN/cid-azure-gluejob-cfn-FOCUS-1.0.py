@@ -1,4 +1,4 @@
-# Cloud Intelligence Dashboard for Azure Glue Script - FOCUS Cost Export - CloudFormation
+# Cloud Intelligence Dashboard for Azure Glue Script - FOCUS Cost Export
 
 ### Glue base
 import sys
@@ -146,7 +146,7 @@ if var_bulk_run == 'true':
         print("ERROR: {}".format(e))
         pass
     # Change bulk_run ssm parameter to false
-    ssm_client.put_parameter(Name=args['var_bulk_run_ssm_name'],Value='false',Type='String',Overwrite=True)
+    ssm_client.put_parameter(Name=var_bulk_run_ssm_name, Value='false', Type='String', Overwrite=True)
 
 else:
     print("INFO: Bulk run is set to {}, continuing with normal run".format(var_bulk_run))

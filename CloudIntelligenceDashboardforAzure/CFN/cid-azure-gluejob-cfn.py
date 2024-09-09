@@ -1,4 +1,4 @@
-# Cloud Intelligence Dashboard for Azure Glue Script - Standard Cost Export - CloudFormation
+# Cloud Intelligence Dashboard for Azure Glue Script - Standard Cost Export
 
 ### Glue base
 import sys
@@ -75,9 +75,17 @@ def delete_s3_folder(bucket, folder):
 ### Bulk Run - process latest object for each month
 from datetime import datetime
 ssm_client = boto3.client('ssm')
-var_bulk_run = ssm_client.get_parameter(Name=args['var_bulk_run_ssm_name'])['Parameter']['Value']
+var_bulk_run = ssm_client.get_parameter(Name=var_bulk_run_ssm_name)['Parameter']['Value']
 if var_bulk_run == 'true':
     print("INFO: Bulk run is set to {}, starting bulk run".format(var_bulk_run))
+    # Delete manifest.json files from raw folder
+    s3 = boto3.client('s3')
+    response = s3.list_objects_v2(Bucket=var_bucket, Prefix=var_raw_folder)
+    for obj in response.get('Contents', []):
+        key = obj['Key']
+        if key.endswith('manifest.json'):
+            print(f"INFO: Deleting manifest file {key}")
+            s3.delete_object(Bucket=var_bucket, Key=key)
     # Copy CSV from raw to processed
     copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_processed_folder)
     # Delete raw files
@@ -142,7 +150,7 @@ if var_bulk_run == 'true':
         print("ERROR: {}".format(e))
         pass
     # Change bulk_run ssm parameter to false
-    ssm_client.put_parameter(Name=args['var_bulk_run_ssm_name'],Value='false',Type='String',Overwrite=True)
+    ssm_client.put_parameter(Name=var_bulk_run_ssm_name, Value='false', Type='String', Overwrite=True)
 
 else:
     print("INFO: Bulk run is set to {}, continuing with normal run".format(var_bulk_run))
@@ -202,6 +210,8 @@ try:
 
 except Exception as e:
     # If the file(s) cannot be processed, move to the error folder
+    ssm_client = boto3.client('ssm')
+    var_bulk_run = ssm_client.get_parameter(Name=var_bulk_run_ssm_name)['Parameter']['Value']
     if var_bulk_run == 'false':
         copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
         delete_s3_folder(var_bucket, var_raw_folder)

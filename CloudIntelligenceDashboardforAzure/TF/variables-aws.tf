@@ -78,6 +78,28 @@ variable "AzureTags" {
   type        = string
   default     = "'Environment', 'CostCenter', 'System,', 'Department'"
 }
+variable "AzureOverwritedataEnabled" {
+  description = "Select 'true' if the Azure Export is set to overwrite the same file throughout the month, rather than generating a new file for each export."
+  type        = string
+  default     = "true"
+
+  validation {
+    condition     = var.AzureOverwritedataEnabled == "true" || var.AzureOverwritedataEnabled == "false"
+    error_message = "valid values: true, false"
+  }
+}
+
+# Export Settings
+variable "ExportType" {
+  description = "Select the type of Azure export you configured. Select 'Standard' for the regular expor or 'FOCUS' for the FOCUS specification."
+  type        = string
+  default     = "Standard"
+
+  validation {
+    condition     = var.ExportType == "Standard" || var.ExportType == "FOCUS"
+    error_message = "valid values: Standard, FOCUS"
+  }
+}
 
 # Data Copy Settings
 variable "AzureCopySchedule" {

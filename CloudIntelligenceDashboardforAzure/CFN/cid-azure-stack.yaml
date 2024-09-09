@@ -115,7 +115,7 @@ Parameters:
     Default: "Environment, CostCenter, System, Department"
   AzureOverwritedataEnabled:
     Type: String
-    Description: Select "true" if the Azure Export is set to overwrite the same file throughout the month, rather than generating a new file for each run. This setting should be set to "true" for Azure FOCUS exports
+    Description: Select "true" if the Azure Export is set to overwrite the same file throughout the month, rather than generating a new file for each export.
     Default: "false"
     AllowedValues:
       - "true"
@@ -799,7 +799,7 @@ Resources:
       Name: !Sub ${PrefixCode}smp${EnvironmentCode}cidazure-var_bulk_run
       Type: String
       Value: !If [IsAzureOverwriteEnabled, "false", "true"]
-      Description: Cloud Intelligence Dashboard for Azure parameter. Set to true (lowercase t) if this is the first data copy or you are reprocessing. Otherwise, set to false, especially if the Azure FOCUS export is enabled
+      Description: Cloud Intelligence Dashboard for Azure parameter. Set to true (lowercase t) if this is the first data copy or you are reprocessing. Otherwise, set to false.
       Tags:
         Customer: !Sub ${OwnerTag}
         Environment: !Sub ${EnvironmentTag}
@@ -810,7 +810,7 @@ Resources:
   SMParameterGlueNoteBookArgs:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub ${PrefixCode}smp${EnvironmentCode}-GlueNoteBookArgs
+      Name: !Sub ${PrefixCode}smp${EnvironmentCode}-cidazure-gluenotebookargs
       Type: String
       Value: !Sub |
           var_raw_path = 's3://${S3Bucket}/azurecidraw/'
@@ -838,11 +838,11 @@ Resources:
         Provisioner: CFN
         Solution: AWSCIDforAzure
         Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}-GlueNoteBookArgs
+        Name: !Sub ${PrefixCode}smp${EnvironmentCode}-cidazure-gluenotebookargsFOCUS
   SMParameterGlueNoteBookArgsFocus:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub ${PrefixCode}smp${EnvironmentCode}-GlueNoteBookArgsFOCUS
+      Name: !Sub ${PrefixCode}smp${EnvironmentCode}-cidazure-gluenotebookargsFOCUS
       Type: String
       Value: !Sub |
           var_raw_path = 's3://${S3Bucket}/azurecidraw/'
@@ -854,6 +854,7 @@ Resources:
           var_raw_folder = 'azurecidraw'
           var_processed_folder = 'azurecidprocessedfocus'
           var_parquet_folder = 'azurecidparquetfocus'
+          var_date_format = '${AzureDateFormat}'
           var_folderpath = '${AzureFolderPath}'
           var_bulk_run_ssm_name = '${PrefixCode}smp${EnvironmentCode}cidazure-var_bulk_run'
           var_account_type = '${AccountType}'
@@ -867,7 +868,7 @@ Resources:
         Provisioner: CFN
         Solution: AWSCIDforAzure
         Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}-GlueNoteBookArgsFOCUS
+        Name: !Sub ${PrefixCode}smp${EnvironmentCode}-cidazure-gluenotebookargsFOCUS
   
   ### Create SSM Parameter to supply dashboard installation command
   SMParameterDashboardDeploy:
