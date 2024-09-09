@@ -16,7 +16,6 @@ AzureSecretKey     = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 # END: Not Required when using Azure Example templates
 AccountType        = "MCA"
 AzureDateFormat    = "MM/dd/yyyy"
-#AzureFolderPath    = "directory/*"
 AzureFolderPath    = "directory/*"
 AzureTags          = "Environment, CostCenter, System, Department"
 
