@@ -138,9 +138,7 @@ resource "aws_iam_role_policy" "cidazurequicksight" {
     ]
   })
 }
-# TODO: Replace with QuickSight role-based access control to data sources that connect to Amazon S3 and Athena
 
-#[Comment out for offline mode 1/1]
 resource "aws_iam_role_policy" "disablemultipartpolicy" {
   name = format("%s%s%s%s", var.PrefixCode, "irp", var.EnvironmentCode, "disablemultipart")
   role = aws_iam_role.GlueIAM.id
@@ -516,3 +514,4 @@ resource "aws_athena_named_query" "cidazurefocusresource" {
     }
   )
 }
+
