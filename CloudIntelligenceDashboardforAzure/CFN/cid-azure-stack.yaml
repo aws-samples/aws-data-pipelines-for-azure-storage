@@ -1572,6 +1572,134 @@ Resources:
         - Key: Name
           Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelambda06
 
+### Create installation log
+  LambdaFunctionLogRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Cloud Intelligence Dashboard for Azure IAM role for install logging
+      RoleName: !Sub ${PrefixCode}iar${EnvironmentCode}cidazurelog
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub ${PrefixCode}iap${EnvironmentCode}cidazurelog
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:CreateLogGroup
+              Resource:
+              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${PrefixCode}lmd${EnvironmentCode}cidazurelog"
+              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${PrefixCode}lmd${EnvironmentCode}cidazurelog:*"
+              - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${PrefixCode}lmd${EnvironmentCode}cidazurelog:*:*"
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: security
+        - Key: Name
+          Value: !Sub ${PrefixCode}iar${EnvironmentCode}cidazurelog
+
+  LambdaFunctionLog:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Cloud Intelligence Dashboard Lambda to record install of FOCUS solution
+      Runtime: python3.12
+      FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelog
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt LambdaFunctionLogRole.Arn
+      Timeout: 15
+      Environment:
+        Variables:
+          API_ENDPOINT: https://okakvoavfg.execute-api.eu-west-1.amazonaws.com/
+      Code:
+        ZipFile: |
+          import os
+          import json
+          import uuid
+          import urllib3
+
+          import boto3
+          import cfnresponse
+
+          http = urllib3.PoolManager()
+          endpoint = os.environ["API_ENDPOINT"]
+          account_id = boto3.client("sts").get_caller_identity()["Account"]
+
+          def execute_request(action, product_id, via_key):
+              try:
+                  payload = {'dashboard_id': product_id, 'account_id': account_id, via_key: 'CFN'}
+                  encoded_data = json.dumps(payload).encode('utf-8')
+                  r = http.request(action, endpoint, body=encoded_data, headers={'Content-Type': 'application/json'})
+                  if r.status != 200:
+                      return f"This will not fail the deployment. There has been an issue logging action {action} for product {product_id} and account {account_id}, server did not respond with a 200 response, status: {r.status}, response data {r.data.decode('utf-8')}. This issue will be ignored"
+              except urllib3.exceptions.HTTPError as e:
+                  return f"Issue logging action {action} for product {product_id} and account {account_id}, due to a urllib3 exception {str(e)}. This issue will be ignored"
+              return None
+
+          def register_deployment(action, products):
+              message = f"Successfully logged  {action} for {products}"
+              for product_id in products:
+                  if action == 'Create':
+                      message = execute_request('PUT', product_id, 'created_via')
+                  elif action == 'Update':
+                      message = execute_request('PATCH', product_id, 'updated_via')
+                  elif action == 'Delete':
+                      message = execute_request('DELETE', product_id, 'deleted_via')
+                  if not message:
+                      message = f"Successfully logged {action} for {products} "
+              #Do not stop deployment if we're not able to successfully record this deployment, still return true
+              return (True, message)
+
+          def lambda_handler(event, context):
+              if event['RequestType'] in ['Create', 'Update', 'Delete']:
+                  res, reason = register_deployment(event['RequestType'], event['ResourceProperties']['DeploymentType'])
+              else:
+                  res, reason = False, "Unknown operation: " + event['RequestType']
+
+              physicalResourceId = event.get('ResourceProperties', {}).get('Export', {}).get('Name') or str(uuid.uuid1())
+              if res:
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, physicalResourceId )
+              else:
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId, reason=reason)
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: compute
+        - Key: Name
+          Value: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelog
+
+  AnalyticsExecutorForDataExports:
+    Type: Custom::InstallLoggerforCIDAzureFOCUS
+    Properties:
+      ServiceToken: !GetAtt LambdaFunctionLog.Arn
+      DeploymentType: 
+        - !If [IsExportFocus, "cid-azure-focus", !Ref 'AWS::NoValue']
+        - !If [IsExportStandard, "cid-azure-standard", !Ref 'AWS::NoValue']
+
   ### Create SNS queues
   SNSTopicL1L2:
     Type: AWS::SNS::Topic
