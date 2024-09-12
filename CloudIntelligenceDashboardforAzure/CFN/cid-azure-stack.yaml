@@ -645,7 +645,7 @@ Resources:
       Timeout: 60
       Command:
         Name: glueetl
-        ScriptLocation: !Sub "s3://${SourceBucket}/cid-azure-gluejob-cfn.py"
+        ScriptLocation: !Sub "s3://${SourceBucket}/cid-azure-gluejob.py"
         PythonVersion: "3"
       DefaultArguments:
         --enable-glue-datacatalog: true
@@ -693,7 +693,7 @@ Resources:
       Timeout: 60
       Command:
         Name: glueetl
-        ScriptLocation: !Sub "s3://${SourceBucket}/cid-azure-gluejob-cfn-FOCUS-1.0.py"
+        ScriptLocation: !Sub "s3://${SourceBucket}/cid-azure-gluejob-FOCUS-1.0.py"
         PythonVersion: "3"
       DefaultArguments:
         --enable-glue-datacatalog: true

@@ -165,13 +165,13 @@ resource "aws_iam_role_policy" "disablemultipartpolicy" {
 resource "aws_s3_object" "cidazuregluepy" {
   bucket  = aws_s3_bucket.S3Bucket.id
   key     = "scripts/cid-azure-gluejob-tf.py"
-  content = templatefile("../CFN/cid-azure-gluejob-cfn.py",{})
+  content = templatefile("../CFN/cid-azure-gluejob.py",{})
 }
 
 resource "aws_s3_object" "cidazuregluepyfocus" {
   bucket  = aws_s3_bucket.S3Bucket.id
   key     = "scripts/cid-azure-gluejob-tf-FOCUS-1.0.py"
-  content = templatefile("../CFN/cid-azure-gluejob-cfn-FOCUS-1.0.py",{})
+  content = templatefile("../CFN/cid-azure-gluejob-FOCUS-1.0.py",{})
 }
 
 ### Create Glue Resources
