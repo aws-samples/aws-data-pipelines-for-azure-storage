@@ -2,7 +2,7 @@
 
 ### Create IAM configuration used throughout project
 resource "aws_iam_role" "GlueIAM" {
-  name        = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "ccidazureglue")
+  name        = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "cidazureglue")
   description = "Cloud Intelligence Dashboard for Azure IAM role for Glue"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -153,6 +153,52 @@ resource "aws_iam_role_policy" "disablemultipartpolicy" {
         Effect = "Allow"
         Resource = [
           "${aws_lambda_function.LambdaFunction01.arn}"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "LogIAM" {
+  name        = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "ccidazurelog")
+  description = "Cloud Intelligence Dashboard for Azure IAM role for install logging"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name  = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "cidazurelog")
+    rtype = "security"
+  }
+}
+
+resource "aws_iam_role_policy" "LogIAM" {
+  name = format("%s%s%s%s", var.PrefixCode, "irp", var.EnvironmentCode, "cidazurelog")
+  role   = aws_iam_role.LogIAM.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:CreateLogGroup"
+        ]
+        Resource = [
+          "arn:aws:logs:${var.Region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.PrefixCode}lmd${var.EnvironmentCode}cidazurelambdalog",
+          "arn:aws:logs:${var.Region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.PrefixCode}lmd${var.EnvironmentCode}cidazurelambdalog:*",
+          "arn:aws:logs:${var.Region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.PrefixCode}lmd${var.EnvironmentCode}cidazurelambdalog:*:*"
         ]
       }
     ]
@@ -514,4 +560,45 @@ resource "aws_athena_named_query" "cidazurefocusresource" {
     }
   )
 }
+### Create installation log
+resource "aws_lambda_function" "LambdaFunctionLog" {
+  filename      = "cid-azure-lambdalog.zip"
+  function_name = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambdalog")
+  description   = "Cloud Intelligence Dashboard for Azure Lambda function to record install of FOCUS solution"
+  handler       = "cid-azure-lambdalog.lambda_handler"
+  kms_key_arn   = aws_kms_key.KMSKey.arn
+  role          = aws_iam_role.LogIAM.arn
+  runtime       = "python3.12"
+  memory_size   = 128
+  timeout       = 15
 
+  environment {
+    variables = {
+      API_ENDPOINT = "https://okakvoavfg.execute-api.eu-west-1.amazonaws.com/"
+      account_id = data.aws_caller_identity.current.account_id
+      dashboard_id = format("%s%s", "cid-azure-", var.ExportType)
+    }
+  }
+  ephemeral_storage {
+    size = 512
+  }
+  tracing_config {
+    mode = "Active"
+  }
+
+  tags = {
+    Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambdalog")
+    rtype = "compute"
+  }
+}
+
+resource "aws_lambda_invocation" "LambdaFunctionLog" {
+  function_name = aws_lambda_function.LambdaFunctionLog.function_name
+
+  input = jsonencode({
+    dashboard_id = format("%s%s", "cid-azure-", var.ExportType)
+    account_id   = data.aws_caller_identity.current.account_id
+  })
+
+  lifecycle_scope = "CREATE_ONLY"
+}

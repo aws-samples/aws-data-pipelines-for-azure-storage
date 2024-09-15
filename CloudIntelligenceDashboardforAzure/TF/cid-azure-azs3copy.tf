@@ -39,7 +39,6 @@ JSON
   }
 }
 
-### Create Secrets Manager secret [Comment out for offline mode 1/6]
 resource "aws_secretsmanager_secret" "SecretsManagerSecret" {
   name        = format("%s%s%s%s", var.PrefixCode, "sms", var.EnvironmentCode, "cidazure")
   description = "Cloud Intelligence Dashboard for Azure Secrets"
@@ -252,7 +251,6 @@ resource "aws_s3_bucket_public_access_block" "S3Bucket" {
   restrict_public_buckets = true
 }
 
-### Create IAM configuration used throughout project [Comment out for offline mode 2/6]
 resource "aws_iam_role" "LambdaIAM" {
   name        = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "cidazurelambda")
   description = "Cloud Intelligence Dashboard for Azure IAM role for Lambda Functions"
@@ -392,7 +390,6 @@ resource "aws_iam_role_policy" "EventBridgeIAM" {
   })
 }
 
-### Create Lambda Functions [Comment out for offline mode 3/6]
 resource "aws_lambda_layer_version" "azure-arm-identity" {
   filename                 = "../CFN/azure-arm-identity.zip"
   layer_name               = "azure-arm-identity"
@@ -442,6 +439,11 @@ resource "aws_lambda_function" "LambdaFunction01" {
   tags = {
     Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda01")
     rtype = "compute"
+  }
+
+  # Ensures the partition size is not overwritten with subsequent applies
+  lifecycle {
+    ignore_changes = [environment[0].variables["partitionSize"]]
   }
 }
 
@@ -589,7 +591,6 @@ resource "aws_lambda_function" "LambdaFunction06" {
   }
 }
 
-### Create SNS queues [Comment out for offline mode 4/6]
 resource "aws_sns_topic" "SNSTopicL1L2" {
   name              = format("%s%s%s%s", var.PrefixCode, "sns", var.EnvironmentCode, "cidazureL1_to_L2")
   kms_master_key_id = "alias/aws/sns"
@@ -720,7 +721,6 @@ resource "aws_lambda_permission" "LambdaPermissionLargeFileRecomb" {
   source_arn    = aws_sns_topic.SNSTopicLargeFileRecomb.arn
 }
 
-### Create EventBridge schedule [Comment out for offline mode 5/6]
 resource "aws_cloudwatch_event_rule" "ScheduledRule" {
   name                = format("%s%s%s%s", var.PrefixCode, "evr", var.EnvironmentCode, "cidazure")
   description         = "Cloud Intelligence Dashboard for Azure Scheduled pull from Azure blob storage"
@@ -747,7 +747,6 @@ resource "aws_lambda_permission" "LambdaPermissionScheduledRule" {
   source_arn    = aws_cloudwatch_event_rule.ScheduledRule.arn
 }
 
-### Cloudwatch Dashboard [Comment out for offline mode 6/6]
 resource "aws_cloudwatch_dashboard" "CloudwatchDashboard" {
   dashboard_name = format("%s%s%s%s", var.PrefixCode, "cwd", var.EnvironmentCode, "cidazure")
   dashboard_body = <<EOF
