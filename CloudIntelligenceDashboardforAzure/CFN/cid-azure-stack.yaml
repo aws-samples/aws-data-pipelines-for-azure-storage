@@ -1029,7 +1029,7 @@ Resources:
             billing_period,
             'Azure Only Field'
 
-        UNION 
+        UNION ALL
 
         SELECT
             NULL AS AvailabilityZone,
@@ -1228,7 +1228,7 @@ Resources:
             billing_period,
             'Azure Only Field'
             
-        UNION 
+        UNION ALL
 
         SELECT
             NULL AS AvailabilityZone,

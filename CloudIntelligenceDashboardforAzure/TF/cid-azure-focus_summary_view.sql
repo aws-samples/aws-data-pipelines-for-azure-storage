@@ -96,7 +96,7 @@ GROUP BY
     billing_period,
     'Azure Only Field'
 
-UNION 
+UNION ALL
 
 SELECT
     NULL AS AvailabilityZone,
