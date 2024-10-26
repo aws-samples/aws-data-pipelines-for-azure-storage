@@ -1158,7 +1158,7 @@ Resources:
             SubAccountId,
             SubAccountName,
             Tags,
-            -- Extract specific tag values from the Tags MAP column 1/4
+            -- Extract specific tag values from the Tags column 1/4
             TRY(element_at(Tags, 'Customer')) AS tag_Customer,
             TRY(element_at(Tags, 'Environment')) AS tag_Environment,
             TRY(element_at(Tags, 'Project')) AS tag_Project,
@@ -1214,7 +1214,7 @@ Resources:
             SubAccountId,
             SubAccountName,
             Tags,
-            -- Extract specific tag values from the Tags MAP column 2/4
+            -- Extract specific tag values from the Tags column 2/4
             TRY(element_at(Tags, 'Customer')),
             TRY(element_at(Tags, 'Environment')),
             TRY(element_at(Tags, 'Project')),
@@ -1258,7 +1258,7 @@ Resources:
             SubAccountId,
             SubAccountName,
             Tags,
-            -- Extract specific tag values from the Tags MAP column 3/4
+            -- Extract specific tag values from the Tags column 3/4
             TRY(element_at(Tags, 'Customer')) AS tag_Customer,
             TRY(element_at(Tags, 'Environment')) AS tag_Environment,
             TRY(element_at(Tags, 'Project')) AS tag_Project,
@@ -1308,7 +1308,7 @@ Resources:
             SubAccountId,
             SubAccountName,
             Tags,
-            -- Extract specific tag values from the Tags MAP column 4/4
+            -- Extract specific tag values from the Tags column 4/4
             TRY(element_at(Tags, 'Customer')),
             TRY(element_at(Tags, 'Environment')),
             TRY(element_at(Tags, 'Project')),
