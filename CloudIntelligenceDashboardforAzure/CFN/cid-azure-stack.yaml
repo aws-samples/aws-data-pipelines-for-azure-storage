@@ -24,7 +24,6 @@ Metadata:
           - AzureSecretKey
           - AzureDateFormat
           - AzureFolderPath
-          - AzureTags
           - AzureOverwritedataEnabled
       - Label:
           default: Export Settings
@@ -42,6 +41,7 @@ Metadata:
           - PartitionSize
           - MaxPartitionsPerFile
           - UseFullFilePath
+          - AzureTags
 
 ### Common Parameters
 Parameters:
@@ -107,16 +107,12 @@ Parameters:
       - yyyy-MM-dd
   AzureFolderPath:
     Type: String
-    Description: Path to Azure cost export folders, used by AWS Glue job. "directory/*" = <azure storage account>/<azure storage container>/directory/* "directory/*/*" = File Partitioning enabled or FOCUS Export
-    Default: directory/*
-  AzureTags:
-    Type: String
-    Description: List of Azure tags names you would like to bring across to QuickSight. WARNING leave a space after each comma. You will need at least one value, make one up if you don't have anything. Case sensitive.
-    Default: "Environment, CostCenter, System, Department"
+    Description: Path to Azure cost export folders, used by AWS Glue job. "directory/*/*" = File Partitioning enabled or FOCUS Export. "directory/*" = <azure storage account>/<azure storage container>/directory/*
+    Default: directory/*/*
   AzureOverwritedataEnabled:
     Type: String
-    Description: Select "true" if the Azure Export is set to overwrite the same file throughout the month, rather than generating a new file for each export.
-    Default: "false"
+    Description: Select "true" if the Azure Export is configured with the Overwrite data option.
+    Default: "true"
     AllowedValues:
       - "true"
       - "false"
@@ -160,6 +156,10 @@ Parameters:
     AllowedValues:
       - "true"
       - "false"
+  AzureTags:
+    Type: String
+    Description: This parameter is no longer used, but is retained here for reference purposes
+    Default: "Environment, CostCenter, System, Department"
 Conditions:
   IsAzureOverwriteEnabled: !Equals [!Ref AzureOverwritedataEnabled, "true"]
   IsExportFocus: !Equals [!Ref ExportType, "FOCUS"]
@@ -666,7 +666,6 @@ Resources:
         --var_parquet_folder: azurecidparquet
         --var_date_format: !Sub ${AzureDateFormat}
         --var_folderpath: !Sub ${AzureFolderPath}
-        --var_azuretags: !GetAtt SMParameterVarAzureTags.Value
         --var_account_type: !Sub ${AccountType}
         --var_bulk_run_ssm_name: !Ref SMParameterVarBulkRun
         --var_error_folder: azureciderror
@@ -779,20 +778,6 @@ Resources:
     Condition: IsExportFocus
   
   ### Create System Manager Parameters used by Glue script
-  SMParameterVarAzureTags:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub ${PrefixCode}smp${EnvironmentCode}cidazure-var_azuretags
-      Type: String
-      Value: !Sub ${AzureTags}
-      Description: Cloud Intelligence Dashboard for Azure parameter. Azure tags to be exposed to QuickSight
-      Tags:
-        Customer: !Sub ${OwnerTag}
-        Environment: !Sub ${EnvironmentTag}
-        Provisioner: CFN
-        Solution: AWSCIDforAzure
-        Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}cidazure-var_azuretags
   SMParameterVarBulkRun:
     Type: AWS::SSM::Parameter
     Properties:
@@ -824,13 +809,11 @@ Resources:
           var_parquet_folder = 'azurecidparquet'
           var_date_format = '${AzureDateFormat}'
           var_folderpath = '${AzureFolderPath}'
-          var_azuretags = '{{resolve:ssm:${SMParameterVarAzureTags}}}'
           var_account_type = '${AccountType}'
           var_bulk_run_ssm_name = '${PrefixCode}smp${EnvironmentCode}cidazure-var_bulk_run'
           var_error_folder = 'azureciderror'
           var_lambda01_name = '${LambdaFunction01}'
           var_raw_fullpath = var_raw_path + var_folderpath
-          SELECTED_TAGS = var_azuretags.split(", ")
       Description: Cloud Intelligence Dashboard for Azure parameters. Used to setup Glue Notebook parameters for interactive sessions.
       Tags:
         Customer: !Sub ${OwnerTag}
@@ -884,7 +867,7 @@ Resources:
         Provisioner: CFN
         Solution: AWSCIDforAzure
         Rtype: parameter
-        Name: !Sub ${PrefixCode}smp${EnvironmentCode}var_azuretags
+        Name: !Sub ${PrefixCode}smp${EnvironmentCode}-deploy_dashboard_command
   
   ### Create Athena resources
   AthenaWorkgroup:
@@ -915,14 +898,25 @@ Resources:
         - Key: Name
           Value: !Sub ${PrefixCode}atw${EnvironmentCode}cidazure
 
-  ### Generate Athena saved queries. named queries are for reference only and not used as part of automation
+  ### Generate Athena saved queries.
   AthenaQuery:
     Type: AWS::Athena::NamedQuery
     Properties:
       Database: !Ref GlueDatabase
-      Description: Cloud Intelligence Dashboard for Azure standard export Athena Named Query
+      Description: Cloud Intelligence Dashboard for Azure STANDARD export Athena Named Query
       Name: !Sub ${PrefixCode}atq${EnvironmentCode}cidazure
-      QueryString: !Sub CREATE OR REPLACE VIEW "${GlueTable}_athena_view" AS SELECT * FROM "${GlueTable}" WHERE month >= DATE(to_iso8601(current_date - interval '6' month))
+      QueryString: !Sub |
+        CREATE OR REPLACE VIEW "${GlueTable}_athena_view" AS
+        SELECT
+          -- 1/1 Extract specific tag values from the Tags column.
+          --REGEXP_EXTRACT(tags, '"Environment": "([^"]*)"', 1) AS tag_Environment,
+          --REGEXP_EXTRACT(tags, '"CostCenter": "([^"]*)"', 1) AS tag_CostCenter,
+          --REGEXP_EXTRACT(tags, '"System": "([^"]*)"', 1) AS tag_System,
+          --REGEXP_EXTRACT(tags, '"Department": "([^"]*)"', 1) AS tag_Department,
+          -- Tag extraction section END
+          *
+        FROM "${GlueTable}"
+        WHERE month >= DATE(to_iso8601(current_date - interval '6' month));
       WorkGroup: !Ref AthenaWorkgroup
   AthenaQueryFOCUSSummaryView:
     Type: AWS::Athena::NamedQuery
@@ -969,7 +963,7 @@ Resources:
             SubAccountId,
             SubAccountName,
             Tags,
-            -- 1/4 Extract specific tag values from the Tags MAP column. AWS user tags are lowercase and prefixed with user_
+            -- 1/4 Extract specific tag values from Tags column. AWS user tags are lowercase and prefixed with user_
             TRY(element_at(Tags, 'user_customer')) AS tag_Customer,
             TRY(element_at(Tags, 'user_environment')) AS tag_Environment,
             TRY(element_at(Tags, 'user_project')) AS tag_Project,
@@ -1021,7 +1015,7 @@ Resources:
             SubAccountId,
             SubAccountName,
             Tags,
-            -- 2/4 Extract specific tag values from the Tags MAP column. AWS user tags are lowercase and prefixed with user_
+            -- 2/4 Extract specific tag values from the Tags column. AWS user tags are lowercase and prefixed with user_
             TRY(element_at(Tags, 'user_customer')),
             TRY(element_at(Tags, 'user_environment')),
             TRY(element_at(Tags, 'user_project')),
@@ -1062,7 +1056,7 @@ Resources:
             SubAccountId,
             SubAccountName,
             Tags,
-            -- 3/4 Extract specific tag values from the Tags MAP column
+            -- 3/4 Extract specific tag values from the Tags column
             TRY(element_at(Tags, 'Customer')) AS tag_Customer,
             TRY(element_at(Tags, 'Environment')) AS tag_Environment,
             TRY(element_at(Tags, 'Project')) AS tag_Project,
@@ -1109,7 +1103,7 @@ Resources:
             SubAccountId,
             SubAccountName,
             Tags,
-            -- 4/4 Extract specific tag values from the Tags MAP column
+            -- 4/4 Extract specific tag values from the Tags column
             TRY(element_at(Tags, 'Customer')),
             TRY(element_at(Tags, 'Environment')),
             TRY(element_at(Tags, 'Project')),
