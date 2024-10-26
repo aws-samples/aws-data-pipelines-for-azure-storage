@@ -51,11 +51,11 @@ Parameters:
     Default: bucketname
   PrefixCode:
     Type: String
-    Description: Prefix used to name all resources created by this CloudFormation template. Use 3 alphanumeric characters only. Cannot be 'aws'. E.g 'fin' for FinOps
+    Description: Prefix used to name all resources created by this CloudFormation template. Cannot be 'aws'. E.g 'fin' for FinOps
     Default: cid
   EnvironmentCode:
     Type: String
-    Description: Code used to name all resources created by this CloudFormation template. Use 2 alphanumeric characters only. E.g. 'pd' for production
+    Description: Code used to name all resources created by this CloudFormation template. E.g. 'pd' for production
     Default: pd
   OwnerTag:
     Type: String
