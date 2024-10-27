@@ -19,7 +19,7 @@ args = getResolvedOptions(sys.argv, [
     'JOB_NAME', 'var_raw_path', 'var_parquet_path', 'var_processed_path',
     'var_glue_database', 'var_glue_table', 'var_bucket', 'var_raw_folder',
     'var_processed_folder', 'var_parquet_folder', 'var_date_format',
-    'var_folderpath', 'var_azuretags', 'var_account_type', 'var_bulk_run_ssm_name', 
+    'var_folderpath', 'var_account_type', 'var_bulk_run_ssm_name', 
     'var_error_folder', 'var_lambda01_name'
 ])
 var_raw_path = args['var_raw_path']
@@ -33,13 +33,11 @@ var_processed_folder = args['var_processed_folder']
 var_parquet_folder = args['var_parquet_folder']
 var_date_format = args['var_date_format']
 var_folderpath = args['var_folderpath']
-var_azuretags = args['var_azuretags']
 var_account_type = args['var_account_type']
 var_bulk_run_ssm_name = args['var_bulk_run_ssm_name']
 var_error_folder = args['var_error_folder']
 var_lambda01_name = args['var_lambda01_name']
 var_raw_fullpath = var_raw_path + var_folderpath
-SELECTED_TAGS = var_azuretags.split(", ")
 
 ### Copy Function
 import concurrent.futures
@@ -247,25 +245,6 @@ try:
 
 except Exception as e:
     pass
-
-### Surface Azure Tags
-from pyspark.sql.functions import col, udf
-from pyspark.sql.types import ArrayType, StringType, MapType
-import json
-
-# Function handle JSON or instances where curly braces are missing from tag column.
-def transform_to_map(resource_tags):
-    if resource_tags:
-        if resource_tags.startswith('{'):
-            return dict(json.loads(resource_tags))
-        else:
-            return dict(json.loads("{" + resource_tags + "}"))
-# Create column Tags_map (transformed Tags column as map)
-tagsTransformToMapUDF = udf(lambda x:transform_to_map(x), MapType(StringType(), StringType()))
-df2 = df2.withColumn("Tags_map", tagsTransformToMapUDF(col("Tags")))
-# Create columns per selected tag with values
-for tag in SELECTED_TAGS:
-    df2 = df2.withColumn("tag-"+tag, df2.Tags_map.getItem(tag))
 
 ### Create partition column
 from pyspark.sql.functions import trunc

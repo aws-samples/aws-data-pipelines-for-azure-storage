@@ -73,11 +73,6 @@ variable "AzureFolderPath" {
   type        = string
   default     = "directory/*"
 }
-variable "AzureTags" {
-  description = "List of Azure tags names you would like to bring across to QuickSight. WARNING leave a space after each comma. Each tag name must be encapsulated in single quotes. You will need at least one value, make one up if you don't have anything. Case sensitive."
-  type        = string
-  default     = "'Environment', 'CostCenter', 'System,', 'Department'"
-}
 variable "AzureOverwritedataEnabled" {
   description = "Select 'true' if the Azure Export is set to overwrite the same file throughout the month, rather than generating a new file for each export."
   type        = string
@@ -133,6 +128,11 @@ variable "UseFullFilePath" {
   description = "Retain Azure storage path"
   type        = bool
   default     = "true"
+}
+variable "AzureTags" {
+  description = "This parameter is no longer used, but is retained here for reference purposes"
+  type        = string
+  default     = "'Environment', 'CostCenter', 'System,', 'Department'"
 }
 
 # Regions and Availability Zones

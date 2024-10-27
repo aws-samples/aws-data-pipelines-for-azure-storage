@@ -201,22 +201,6 @@ except Exception as e:
     print("ERROR: {}".format(e))
     raise e
 
-### Surface Azure Tags
-from pyspark.sql.functions import col, udf
-from pyspark.sql.types import ArrayType, StringType, MapType
-import json
-
-# Function handle JSON or instances where curly braces are missing from tag column.
-def transform_to_map(resource_tags):
-    if resource_tags:
-        if resource_tags.startswith('{'):
-            return dict(json.loads(resource_tags))
-        else:
-            return dict(json.loads("{" + resource_tags + "}"))
-# Transform Tags column as map)
-tagsTransformToMapUDF = udf(lambda x:transform_to_map(x), MapType(StringType(), StringType()))
-df2 = df2.withColumn("Tags", tagsTransformToMapUDF(col("Tags")))
-
 ### Create partition column
 from pyspark.sql.functions import trunc
 

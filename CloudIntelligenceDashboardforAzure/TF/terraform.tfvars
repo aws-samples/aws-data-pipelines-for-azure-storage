@@ -17,7 +17,6 @@ AzureSecretKey     = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 AccountType        = "MCA"
 AzureDateFormat    = "MM/dd/yyyy"
 AzureFolderPath    = "directory/*"
-AzureTags          = "Environment, CostCenter, System, Department"
 
 AzureOverwritedataEnabled = "false"
 
@@ -33,6 +32,7 @@ BlobToS3SyncStartDate = "20220820"
 PartitionSize        = "104857600"
 MaxPartitionsPerFile = "100"
 UseFullFilePath      = "true"
+AzureTags            = "Environment, CostCenter, System, Department"
 
 # Regions and Availability Zones
 Region = "eu-west-2"

@@ -296,7 +296,6 @@ resource "aws_glue_job" "cidazure" {
     "--var_parquet_folder"      = "azurecidparquet"
     "--var_date_format"         = var.AzureDateFormat
     "--var_folderpath"          = var.AzureFolderPath
-    "--var_azuretags"           = var.AzureTags
     "--var_account_type"        = var.AccountType
     "--var_bulk_run_ssm_name"   = "${aws_ssm_parameter.varbulkrun.name}"
     "--var_error_folder"        = "azureciderror"
@@ -455,13 +454,11 @@ var_processed_folder = "azurecidprocessed"
 var_parquet_folder = "azurecidparquet"
 var_date_format = "${var.AzureDateFormat}"
 var_folderpath = "${var.AzureFolderPath}"
-var_azuretags = "${var.AzureTags}"
 var_account_type = "${var.AccountType}"
 var_bulk_run_ssm_name = "${aws_ssm_parameter.varbulkrun.name}"
 var_error_folder = "azureciderror"
 var_lambda01_name = "${aws_lambda_function.LambdaFunction01.function_name}"
 var_raw_fullpath = var_raw_path + var_folderpath
-SELECTED_TAGS = var_azuretags.split(", ")
 EOF
   description = "Cloud Intelligence Dashboard for Azure parameters. Used to setup Glue Notebook parameters for interactive sessions."
 
@@ -548,7 +545,11 @@ resource "aws_athena_named_query" "cidazure" {
   description = "Cloud Intelligence Dashboard for Azure standard export Athena Named Query"
   workgroup   = aws_athena_workgroup.cidazure.id
   database    = aws_glue_catalog_database.cidazure.name
-  query       = "CREATE OR REPLACE VIEW ${aws_glue_catalog_table.cidazure.name}_athena_view AS SELECT * FROM ${aws_glue_catalog_table.cidazure.name} WHERE month >= DATE(to_iso8601(current_date - interval '6' month))"
+  query = templatefile("cid-azure-standard_view.sql",
+    {
+      var_glue_table    = aws_glue_catalog_table.cidazure.name
+    }
+  )
 }
 
 resource "aws_athena_named_query" "cidazurefocussummary" {
