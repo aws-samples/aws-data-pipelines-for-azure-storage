@@ -7,7 +7,7 @@ terraform {
   }
 }
 provider "aws" {
-  profile = "azurecid"
+  profile = "buw-dev"
   region  = var.Region
   default_tags {
     tags = {

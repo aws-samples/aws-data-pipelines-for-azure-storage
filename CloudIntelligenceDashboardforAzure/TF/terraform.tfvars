@@ -2,7 +2,7 @@
 
 # Common Settings
 PrefixCode            = "cid"
-EnvironmentCode       = "dv"
+EnvironmentCode       = "tf"
 OwnerTag              = "Amazon Web Services"
 EnvironmentTag        = "development"
 QuickSightServiceRole = "aws-quicksight-service-role-v0"
