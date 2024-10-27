@@ -526,6 +526,22 @@ resource "aws_athena_workgroup" "cidazure" {
   }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "cidazure" {
+  bucket = aws_s3_bucket.S3Bucket.id
+
+  rule {
+    id     = "DeleteOldAthenaQueries"
+
+    filter {
+      prefix = "azurecidqueries/"
+    }
+    expiration {
+      days = 7
+    }
+    status = "Enabled"
+  }
+}
+
 ### Generate Athena saved query. named query is for reference only and not used as part of automation
 resource "aws_athena_named_query" "cidazure" {
   name        = format("%s%s%s%s", var.PrefixCode, "atq", var.EnvironmentCode, "cidazure")

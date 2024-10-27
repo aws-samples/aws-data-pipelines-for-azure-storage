@@ -313,6 +313,12 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldAthenaQueries
+            Status: Enabled
+            Prefix: azurecidqueries/
+            ExpirationInDays: 7
       Tags:
         - Key: Owner
           Value: !Sub ${OwnerTag}
