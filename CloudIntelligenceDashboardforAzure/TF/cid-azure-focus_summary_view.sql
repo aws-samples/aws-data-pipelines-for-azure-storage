@@ -37,9 +37,9 @@ SELECT
     SubAccountName,
     Tags,
     -- 1/4 Extract specific tag values from the Tags MAP column. AWS user tags are lowercase and prefixed with user_
-    TRY(element_at(Tags, 'user_customer')) AS tag_Customer,
-    TRY(element_at(Tags, 'user_environment')) AS tag_Environment,
-    TRY(element_at(Tags, 'user_project')) AS tag_Project,
+    TRY(element_at(Tags, 'user_customer')) AS "tag_Customer",
+    TRY(element_at(Tags, 'user_environment')) AS "tag_Environment",
+    TRY(element_at(Tags, 'user_project')) AS "tag_Project",
     -- Tag extraction section END
     billing_period,
     'Azure Only Field' AS x_ResourceGroupName,
@@ -130,9 +130,9 @@ SELECT
     SubAccountName,
     Tags,
     -- 3/4 Extract specific tag values from the Tags MAP column
-    TRY(element_at(Tags, 'Customer')) AS tag_Customer,
-    TRY(element_at(Tags, 'Environment')) AS tag_Environment,
-    TRY(element_at(Tags, 'Project')) AS tag_Project,
+    TRY(element_at(Tags, 'Customer')) AS "tag_Customer",
+    TRY(element_at(Tags, 'Environment')) AS "tag_Environment",
+    TRY(element_at(Tags, 'Project')) AS "tag_Project",
     -- Tag extraction section END
     '' AS billing_period,
     x_ResourceGroupName,

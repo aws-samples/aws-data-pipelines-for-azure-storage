@@ -915,10 +915,10 @@ Resources:
         CREATE OR REPLACE VIEW "${GlueTable}_athena_view" AS
         SELECT
           -- 1/1 Extract specific tag values from the Tags column.
-          TRY(REGEXP_EXTRACT(tags, '"Environment": "([^"]*)"', 1)) AS tag_Environment,
-          TRY(REGEXP_EXTRACT(tags, '"CostCenter": "([^"]*)"', 1)) AS tag_CostCenter,
-          TRY(REGEXP_EXTRACT(tags, '"System": "([^"]*)"', 1)) AS tag_System,
-          TRY(REGEXP_EXTRACT(tags, '"Department": "([^"]*)"', 1)) AS tag_Department,
+          TRY(REGEXP_EXTRACT(tags, '"Environment": "([^"]*)"', 1)) AS "tag_Environment",
+          TRY(REGEXP_EXTRACT(tags, '"CostCenter": "([^"]*)"', 1)) AS "tag_CostCenter",
+          TRY(REGEXP_EXTRACT(tags, '"System": "([^"]*)"', 1)) AS "tag_System",
+          TRY(REGEXP_EXTRACT(tags, '"Department": "([^"]*)"', 1)) AS "tag_Department",
           -- Tag extraction section END
           *
         FROM "${GlueTable}"
@@ -970,9 +970,9 @@ Resources:
             SubAccountName,
             Tags,
             -- 1/4 Extract specific tag values from Tags column. AWS user tags are lowercase and prefixed with user_
-            TRY(element_at(Tags, 'user_customer')) AS tag_Customer,
-            TRY(element_at(Tags, 'user_environment')) AS tag_Environment,
-            TRY(element_at(Tags, 'user_project')) AS tag_Project,
+            TRY(element_at(Tags, 'user_customer')) AS "tag_Customer",
+            TRY(element_at(Tags, 'user_environment')) AS "tag_Environment",
+            TRY(element_at(Tags, 'user_project')) AS "tag_Project",
             -- Tag extraction section END
             billing_period,
             'Azure Only Field' AS x_ResourceGroupName,
@@ -1063,9 +1063,9 @@ Resources:
             SubAccountName,
             Tags,
             -- 3/4 Extract specific tag values from the Tags column
-            TRY(element_at(Tags, 'Customer')) AS tag_Customer,
-            TRY(element_at(Tags, 'Environment')) AS tag_Environment,
-            TRY(element_at(Tags, 'Project')) AS tag_Project,
+            TRY(element_at(Tags, 'Customer')) AS "tag_Customer",
+            TRY(element_at(Tags, 'Environment')) AS "tag_Environment",
+            TRY(element_at(Tags, 'Project')) AS "tag_Project",
             -- Tag extraction section END
             '' AS billing_period,
             x_ResourceGroupName,
@@ -1165,9 +1165,9 @@ Resources:
             SubAccountName,
             Tags,
             -- Extract specific tag values from the Tags column 1/4
-            TRY(element_at(Tags, 'Customer')) AS tag_Customer,
-            TRY(element_at(Tags, 'Environment')) AS tag_Environment,
-            TRY(element_at(Tags, 'Project')) AS tag_Project,
+            TRY(element_at(Tags, 'Customer')) AS "tag_Customer",
+            TRY(element_at(Tags, 'Environment')) AS "tag_Environment",
+            TRY(element_at(Tags, 'Project')) AS "tag_Project",
             -- Tag extraction section END
             billing_period,
             'Azure Only Field' AS x_ResourceGroupName,
@@ -1265,9 +1265,9 @@ Resources:
             SubAccountName,
             Tags,
             -- Extract specific tag values from the Tags column 3/4
-            TRY(element_at(Tags, 'Customer')) AS tag_Customer,
-            TRY(element_at(Tags, 'Environment')) AS tag_Environment,
-            TRY(element_at(Tags, 'Project')) AS tag_Project,
+            TRY(element_at(Tags, 'Customer')) AS "tag_Customer",
+            TRY(element_at(Tags, 'Environment')) AS "tag_Environment",
+            TRY(element_at(Tags, 'Project')) AS "tag_Project",
             -- Tag extraction section END
             '' AS billing_period,
             x_ResourceGroupName,
