@@ -201,7 +201,7 @@ except Exception as e:
     print("ERROR: {}".format(e))
     raise e
 
-### Surface Azure Tags
+# Transform Tags column as map
 from pyspark.sql.functions import col, udf
 from pyspark.sql.types import ArrayType, StringType, MapType
 import json
@@ -213,7 +213,7 @@ def transform_to_map(resource_tags):
             return dict(json.loads(resource_tags))
         else:
             return dict(json.loads("{" + resource_tags + "}"))
-# Transform Tags column as map
+
 tagsTransformToMapUDF = udf(lambda x:transform_to_map(x), MapType(StringType(), StringType()))
 df2 = df2.withColumn("Tags", tagsTransformToMapUDF(col("Tags")))
 
