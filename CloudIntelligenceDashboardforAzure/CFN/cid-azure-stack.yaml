@@ -915,10 +915,9 @@ Resources:
         CREATE OR REPLACE VIEW "${GlueTable}_athena_view" AS
         SELECT
           -- 1/1 Extract specific tag values from the Tags column.
-          TRY(REGEXP_EXTRACT(tags, '"Environment": "([^"]*)"', 1)) AS "tag_Environment",
-          TRY(REGEXP_EXTRACT(tags, '"CostCenter": "([^"]*)"', 1)) AS "tag_CostCenter",
-          TRY(REGEXP_EXTRACT(tags, '"System": "([^"]*)"', 1)) AS "tag_System",
-          TRY(REGEXP_EXTRACT(tags, '"Department": "([^"]*)"', 1)) AS "tag_Department",
+          TRY(element_at(Tags, 'customer')) AS "tag_Customer",
+          TRY(element_at(Tags, 'environment')) AS "tag_Environment",
+          TRY(element_at(Tags, 'project')) AS "tag_Project",
           -- Tag extraction section END
           *
         FROM "${GlueTable}"
