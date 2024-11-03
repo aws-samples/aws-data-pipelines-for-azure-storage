@@ -71,7 +71,7 @@ To deploy using **Terraform** follow the instructions below.
 
 ---
 
-## Cloud intelligence Dashboard for Azure
+## Cloud intelligence Dashboard for Azure (Standard and FOCUS exports)
 
 For an introduction refer to [How to view Azure costs using Amazon QuickSight](https://aws.amazon.com/blogs/modernizing-with-aws/cloud-intelligence-dashboard-for-azure/)
 
