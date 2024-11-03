@@ -1,7 +1,7 @@
 Welcome! This repository contains two projects.
 
 1. [Azure blob to Amazon S3 Copy](#azure-blob-to-amazon-s3-copy)
-2. [Cloud intelligence Dashboard for Azure](#cloud-intelligence-dashboard-for-azure)
+2. [Cloud intelligence Dashboard for Azure Standard and FOCUS exports](#cloud-intelligence-dashboard-for-azure)
 - [Contributing](#contributing)
 - [License](#license)
 
