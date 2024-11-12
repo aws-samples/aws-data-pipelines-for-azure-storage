@@ -220,7 +220,7 @@ df2 = df2.withColumn("Tags", tagsTransformToMapUDF(col("Tags")))
 ### Create partition column
 from pyspark.sql.functions import trunc
 
-df2 = df2.withColumn("BILLING_PERIOD", trunc(df2.BillingPeriodStart, "MM"))
+df2 = df2.withColumn("BILLING_PERIOD", date_format(to_timestamp("BillingPeriodStart"), "yyyy-MM"))
 
 ### Parquet clean up to avoid duplication.
 from pyspark.sql.functions import date_trunc

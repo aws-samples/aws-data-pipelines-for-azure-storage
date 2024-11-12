@@ -16,9 +16,9 @@ AzureSecretKey     = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 # END: Not Required when using Azure Example templates
 AccountType        = "MCA"
 AzureDateFormat    = "MM/dd/yyyy"
-AzureFolderPath    = "directory/*"
+AzureFolderPath    = "directory/*/*"
 
-AzureOverwritedataEnabled = "false"
+AzureOverwritedataEnabled = "true"
 
 # Export Settings
 ExportType = "Standard"
