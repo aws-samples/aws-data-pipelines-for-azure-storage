@@ -171,10 +171,10 @@ from pyspark.sql.types import *
 
 try:
         df2 = df1.withColumn("BilledCost", col("BilledCost").cast(DoubleType())) \
-            .withColumn("BillingPeriodEnd", to_date(date_format(to_timestamp(col("BillingPeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd"))) \
-            .withColumn("BillingPeriodStart", to_date(date_format(to_timestamp(col("BillingPeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd"))) \
-            .withColumn("ChargePeriodEnd", to_date(date_format(to_timestamp(col("ChargePeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd"))) \
-            .withColumn("ChargePeriodStart", to_date(date_format(to_timestamp(col("ChargePeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd"))) \
+            .withColumn("BillingPeriodEnd", to_timestamp(col("BillingPeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("BillingPeriodStart", to_timestamp(col("BillingPeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("ChargePeriodEnd", to_timestamp(col("ChargePeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("ChargePeriodStart", to_timestamp(col("ChargePeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'")) \
             .withColumn("ConsumedQuantity", col("ConsumedQuantity").cast(DoubleType())) \
             .withColumn("ContractedCost", col("ContractedCost").cast(DoubleType())) \
             .withColumn("ContractedUnitPrice", col("ContractedUnitPrice").cast(DoubleType())) \
@@ -185,14 +185,14 @@ try:
             .withColumn("x_BilledCostInUsd", col("x_BilledCostInUsd").cast(DecimalType(17, 16))) \
             .withColumn("x_BilledUnitPrice", col("x_BilledUnitPrice").cast(DecimalType(23, 22))) \
             .withColumn("x_BillingExchangeRate", col("x_BillingExchangeRate").cast(DecimalType(17, 16))) \
-            .withColumn("x_BillingExchangeRateDate", to_date(date_format(to_timestamp(col("x_BillingExchangeRateDate"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd"))) \
+            .withColumn("x_BillingExchangeRateDate", to_timestamp(col("x_BillingExchangeRateDate"), "yyyy-MM-dd'T'HH:mm'Z'")) \
             .withColumn("x_ContractedCostInUsd", col("x_ContractedCostInUsd").cast(DecimalType(23, 22))) \
             .withColumn("x_EffectiveCostInUsd", col("x_EffectiveCostInUsd").cast(DecimalType(17, 16))) \
             .withColumn("x_EffectiveUnitPrice", col("x_EffectiveUnitPrice").cast(DecimalType(23, 22))) \
             .withColumn("x_ListCostInUsd", col("x_ListCostInUsd").cast(DecimalType(17, 16))) \
             .withColumn("x_PricingBlockSize", col("x_PricingBlockSize").cast(DoubleType())) \
-            .withColumn("x_ServicePeriodEnd", to_date(date_format(to_timestamp(col("x_ServicePeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd"))) \
-            .withColumn("x_ServicePeriodStart", to_date(date_format(to_timestamp(col("x_ServicePeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'"), "yyyy-MM-dd")))
+            .withColumn("x_ServicePeriodEnd", to_timestamp(col("x_ServicePeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("x_ServicePeriodStart", to_timestamp(col("x_ServicePeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'"))
 except Exception as e:
     # If the CSV cannot be processed move to error folder
     copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
