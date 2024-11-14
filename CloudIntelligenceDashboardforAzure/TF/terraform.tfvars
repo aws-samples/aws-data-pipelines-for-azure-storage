@@ -22,6 +22,7 @@ AzureOverwritedataEnabled = "true"
 
 # Export Settings
 ExportType = "Standard"
+AzureFocusVersion = "v1.0r2"
 
 # Data Copy Settings
 AzureCopySchedule     = "cron(0 3 * * ? *)"

@@ -59,7 +59,7 @@ variable "AzureSecretKey" {
   default     = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 }
 variable "AzureDateFormat" {
-  description = "Format of date in Azure cost export, check the date column of your Azure csv export to verify."
+  description = "If you are using the Standard export option, format of date in Azure cost export, check the date column of your Azure csv export to verify."
   type        = string
   default     = "MM/dd/yyyy"
 
@@ -86,13 +86,24 @@ variable "AzureOverwritedataEnabled" {
 
 # Export Settings
 variable "ExportType" {
-  description = "Select the type of Azure export you configured. Select 'Standard' for the regular expor or 'FOCUS' for the FOCUS specification."
+  description = "Select the type of Azure export you configured. Select 'Standard' for the regular export or 'FOCUS' for the FOCUS specification."
   type        = string
   default     = "Standard"
 
   validation {
     condition     = var.ExportType == "Standard" || var.ExportType == "FOCUS"
     error_message = "valid values: Standard, FOCUS"
+  }
+}
+
+variable "AzureFocusVersion" {
+  description = "If you are using the FOCUS export option, select the version of the Azure Export FOCUS Dataset"
+  type        = string
+  default     = "v1.0r2"
+
+  validation {
+    condition     = var.AzureFocusVersion == "v1.0r2" || var.AzureFocusVersion == "v1.0"
+    error_message = "v1.0r2, v1.0"
   }
 }
 

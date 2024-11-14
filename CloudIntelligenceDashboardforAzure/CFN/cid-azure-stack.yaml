@@ -29,6 +29,7 @@ Metadata:
           default: Export Settings
         Parameters:
           - ExportType
+          - AzureFocusVersion
       - Label:
           default: Data Copy Settings
         Parameters:
@@ -99,7 +100,7 @@ Parameters:
     NoEcho: true
   AzureDateFormat:
     Type: String
-    Description: Format of date in Azure cost export, check the date column of your Azure csv export to verify.
+    Description: If you are using the Standard export option, format of date in Azure cost export, check the date column of your Azure csv export to verify.
     Default: "MM/dd/yyyy"
     AllowedValues:
       - MM/dd/yyyy
@@ -125,6 +126,13 @@ Parameters:
     AllowedValues:
       - "Standard"
       - "FOCUS"
+  AzureFocusVersion:
+    Type: String
+    Description: If you are using the FOCUS export option, select the version of the Azure Export FOCUS Dataset.
+    Default: "v1.0r2"
+    AllowedValues:
+      - "v1.0r2"
+      - "v1.0"
 
   ### Data Copy Parameters
   AzureCopySchedule:
@@ -164,6 +172,7 @@ Conditions:
   IsAzureOverwriteEnabled: !Equals [!Ref AzureOverwritedataEnabled, "true"]
   IsExportFocus: !Equals [!Ref ExportType, "FOCUS"]
   IsExportStandard: !Equals [!Ref ExportType, "Standard"]
+  IsVersion1r2: !Equals [!Ref AzureFocusVersion, "v1.0r2"]
 
 Resources:
   ### Create a Resource Group for CloudFormation resources
@@ -717,7 +726,7 @@ Resources:
         --var_raw_folder: azurecidraw
         --var_processed_folder: azurecidprocessedfocus
         --var_parquet_folder: azurecidparquetfocus
-        --var_date_format: !Sub ${AzureDateFormat}
+        --var_date_format: !If [IsVersion1r2, "yyyy-MM-dd'T'HH:mm:ss'Z'", "yyyy-MM-dd'T'HH:mm'Z'"]
         --var_folderpath: !Sub ${AzureFolderPath}
         --var_account_type: !Sub ${AccountType}
         --var_bulk_run_ssm_name: !Ref SMParameterVarBulkRun
@@ -843,7 +852,7 @@ Resources:
           var_raw_folder = 'azurecidraw'
           var_processed_folder = 'azurecidprocessedfocus'
           var_parquet_folder = 'azurecidparquetfocus'
-          var_date_format = '${AzureDateFormat}'
+          var_date_format = 'yyyy-MM-dd'T'HH:mm:ss'Z'
           var_folderpath = '${AzureFolderPath}'
           var_bulk_run_ssm_name = '${PrefixCode}smp${EnvironmentCode}cidazure-var_bulk_run'
           var_account_type = '${AccountType}'

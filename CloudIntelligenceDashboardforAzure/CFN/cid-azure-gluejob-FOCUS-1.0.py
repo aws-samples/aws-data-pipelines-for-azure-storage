@@ -19,7 +19,8 @@ args = getResolvedOptions(sys.argv, [
     'JOB_NAME', 'var_raw_path', 'var_parquet_path', 'var_processed_path',
     'var_glue_database', 'var_glue_table', 'var_bucket', 'var_raw_folder',
     'var_processed_folder', 'var_parquet_folder', 'var_folderpath',
-    'var_account_type', 'var_bulk_run_ssm_name', 'var_error_folder', 'var_lambda01_name'
+    'var_account_type', 'var_bulk_run_ssm_name', 'var_error_folder', 
+    'var_lambda01_name', 'var_date_format'
 ])
 var_raw_path = args['var_raw_path']
 var_parquet_path = args['var_parquet_path']
@@ -35,6 +36,7 @@ var_account_type = args['var_account_type']
 var_bulk_run_ssm_name = args['var_bulk_run_ssm_name']
 var_error_folder = args['var_error_folder']
 var_lambda01_name = args['var_lambda01_name']
+var_date_format = args['var_date_format']
 var_raw_fullpath = var_raw_path + var_folderpath
 
 ### Copy Function
@@ -151,6 +153,15 @@ if var_bulk_run == 'true':
 else:
     print("INFO: Bulk run is set to {}, continuing with normal run".format(var_bulk_run))
 
+### Delete manifest.json files from raw folder
+s3 = boto3.client('s3')
+response = s3.list_objects_v2(Bucket=var_bucket, Prefix=var_raw_folder)
+for obj in response.get('Contents', []):
+    key = obj['Key']
+    if key.endswith('manifest.json'):
+        print(f"INFO: Deleting manifest file {key}")
+        s3.delete_object(Bucket=var_bucket, Key=key)
+
 ### Read CSV and append file_path column
 import os
 from pyspark.sql.functions import input_file_name
@@ -171,10 +182,10 @@ from pyspark.sql.types import *
 
 try:
         df2 = df1.withColumn("BilledCost", col("BilledCost").cast(DoubleType())) \
-            .withColumn("BillingPeriodEnd", to_timestamp(col("BillingPeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'")) \
-            .withColumn("BillingPeriodStart", to_timestamp(col("BillingPeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'")) \
-            .withColumn("ChargePeriodEnd", to_timestamp(col("ChargePeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'")) \
-            .withColumn("ChargePeriodStart", to_timestamp(col("ChargePeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("BillingPeriodEnd", to_timestamp(col("BillingPeriodEnd"), var_date_format)) \
+            .withColumn("BillingPeriodStart", to_timestamp(col("BillingPeriodStart"), var_date_format)) \
+            .withColumn("ChargePeriodEnd", to_timestamp(col("ChargePeriodEnd"), var_date_format)) \
+            .withColumn("ChargePeriodStart", to_timestamp(col("ChargePeriodStart"), var_date_format)) \
             .withColumn("ConsumedQuantity", col("ConsumedQuantity").cast(DoubleType())) \
             .withColumn("ContractedCost", col("ContractedCost").cast(DoubleType())) \
             .withColumn("ContractedUnitPrice", col("ContractedUnitPrice").cast(DoubleType())) \
@@ -185,14 +196,14 @@ try:
             .withColumn("x_BilledCostInUsd", col("x_BilledCostInUsd").cast(DecimalType(17, 16))) \
             .withColumn("x_BilledUnitPrice", col("x_BilledUnitPrice").cast(DecimalType(23, 22))) \
             .withColumn("x_BillingExchangeRate", col("x_BillingExchangeRate").cast(DecimalType(17, 16))) \
-            .withColumn("x_BillingExchangeRateDate", to_timestamp(col("x_BillingExchangeRateDate"), "yyyy-MM-dd'T'HH:mm'Z'")) \
+            .withColumn("x_BillingExchangeRateDate", to_timestamp(col("x_BillingExchangeRateDate"), var_date_format)) \
             .withColumn("x_ContractedCostInUsd", col("x_ContractedCostInUsd").cast(DecimalType(23, 22))) \
             .withColumn("x_EffectiveCostInUsd", col("x_EffectiveCostInUsd").cast(DecimalType(17, 16))) \
             .withColumn("x_EffectiveUnitPrice", col("x_EffectiveUnitPrice").cast(DecimalType(23, 22))) \
             .withColumn("x_ListCostInUsd", col("x_ListCostInUsd").cast(DecimalType(17, 16))) \
             .withColumn("x_PricingBlockSize", col("x_PricingBlockSize").cast(DoubleType())) \
-            .withColumn("x_ServicePeriodEnd", to_timestamp(col("x_ServicePeriodEnd"), "yyyy-MM-dd'T'HH:mm'Z'")) \
-            .withColumn("x_ServicePeriodStart", to_timestamp(col("x_ServicePeriodStart"), "yyyy-MM-dd'T'HH:mm'Z'"))
+            .withColumn("x_ServicePeriodEnd", to_timestamp(col("x_ServicePeriodEnd"), var_date_format)) \
+            .withColumn("x_ServicePeriodStart", to_timestamp(col("x_ServicePeriodStart"), var_date_format))
 except Exception as e:
     # If the CSV cannot be processed move to error folder
     copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)

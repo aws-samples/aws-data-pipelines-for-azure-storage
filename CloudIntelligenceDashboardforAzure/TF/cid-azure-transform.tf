@@ -1,5 +1,10 @@
 # This Terraform Template deploys the Cloud Intelligence Dashboard for Azure
 
+### locals
+locals {
+  focus_date_format = var.AzureFocusVersion == "v1.0r2" ? "yyyy-MM-dd'T'HH:mm:ss'Z'" : "yyyy-MM-dd'T'HH:mm'Z'"
+}
+
 ### Create IAM configuration used throughout project
 resource "aws_iam_role" "GlueIAM" {
   name        = format("%s%s%s%s", var.PrefixCode, "iar", var.EnvironmentCode, "cidazureglue")
@@ -380,7 +385,7 @@ resource "aws_glue_job" "cidazurefocus" {
     "--var_raw_folder"          = "azurecidraw"
     "--var_processed_folder"    = "azurecidprocessedfocus"
     "--var_parquet_folder"      = "azurecidparquetfocus"
-    "--var_date_format"         = var.AzureDateFormat
+    "--var_date_format"         = local.focus_date_format
     "--var_folderpath"          = var.AzureFolderPath
     "--var_account_type"        = var.AccountType
     "--var_bulk_run_ssm_name"   = "${aws_ssm_parameter.varbulkrun.name}"
@@ -481,7 +486,7 @@ var_bucket = "${aws_s3_bucket.S3Bucket.id}"
 var_raw_folder = "azurecidraw"
 var_processed_folder = "azurecidprocessedfocus"
 var_parquet_folder = "azurecidparquetfocus"
-var_date_format = "${var.AzureDateFormat}"
+var_date_format = "${local.focus_date_format}"
 var_folderpath = "${var.AzureFolderPath}"
 var_account_type = "${var.AccountType}"
 var_bulk_run_ssm_name = "${aws_ssm_parameter.varbulkrun.name}"
