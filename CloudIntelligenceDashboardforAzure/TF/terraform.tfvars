@@ -2,7 +2,7 @@
 
 # Common Settings
 PrefixCode            = "cid"
-EnvironmentCode       = "tf"
+EnvironmentCode       = "pd"
 OwnerTag              = "Amazon Web Services"
 EnvironmentTag        = "development"
 QuickSightServiceRole = "aws-quicksight-service-role-v0"
@@ -21,8 +21,10 @@ AzureFolderPath    = "directory/*/*"
 AzureOverwritedataEnabled = "true"
 
 # Export Settings
-ExportType = "Standard"
-AzureFocusVersion = "v1.0r2"
+ExportType              = "Standard"
+AzureFocusVersion       = "v1.0r2"
+DataExportsDatabaseName = "cid_data_export"
+QuickSightFocusRole     = "CidQuickSightDataSourceRole"
 
 # Data Copy Settings
 AzureCopySchedule     = "cron(0 3 * * ? *)"

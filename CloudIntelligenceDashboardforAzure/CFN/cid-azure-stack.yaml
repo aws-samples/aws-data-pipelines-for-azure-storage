@@ -30,6 +30,8 @@ Metadata:
         Parameters:
           - ExportType
           - AzureFocusVersion
+          - DataExportsDatabaseName
+          - QuickSightFocusRole
       - Label:
           default: Data Copy Settings
         Parameters:
@@ -68,7 +70,7 @@ Parameters:
     Default: production
   QuickSightServiceRole:
     Type: String
-    Description: IAM Role used by QuickSight to access Amazon S3. You may not have the below service role or you may have setup a custom role such as CidCmdQuickSightDataSourceRole
+    Description: IAM Role used by QuickSight to access Amazon S3 for Standard export. You may not have the below service role or you may have setup a custom role such as CidCmdQuickSightDataSourceRole
     Default: aws-quicksight-service-role-v0
 
   ### Microsoft Azure Parameters
@@ -133,6 +135,14 @@ Parameters:
     AllowedValues:
       - "v1.0r2"
       - "v1.0"
+  DataExportsDatabaseName:
+    Type: String
+    Description: If you are using the FOCUS export option, enter the name of the AWS FOCUS Glue Database
+    Default: cid_data_export
+  QuickSightFocusRole:
+    Type: String
+    Description: IAM Role used by QuickSight to access Amazon S3 for FOCUS export. This should match the role used in the Cloud-Intelligence-Dashboards CFN stack
+    Default: CidQuickSightDataSourceRole
 
   ### Data Copy Parameters
   AzureCopySchedule:
@@ -610,6 +620,47 @@ Resources:
               - !GetAtt KMSKey.Arn
       Roles:
         - !Sub ${QuickSightServiceRole}
+  QuickSightPolicyFocus:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: !Sub ${PrefixCode}iap${EnvironmentCode}cidazurequicksightfocus
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:ListBucketMultipartUploads
+              - s3:GetBucketLocation
+              - s3:PutObject
+              - s3:GetObjectAcl
+              - s3:AbortMultipartUpload
+              - s3:ListMultipartUploadParts
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}
+              - !Sub arn:${AWS::Partition}:s3:::${S3Bucket}/*
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:GenerateDataKey
+            Resource:
+              - !GetAtt KMSKey.Arn
+          - Effect: Allow
+            Action:
+              - glue:GetDatabase
+              - glue:GetTable
+              - glue:GetPartition
+              - glue:GetPartitions
+            Resource:
+              - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog"
+              - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabase}"
+              - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:table/${GlueDatabase}/${GlueTable}"
+      Roles:
+        - !Sub ${QuickSightFocusRole}
+    Condition: IsExportFocus
 
   ### Create Glue Resources
   GlueDatabase:
@@ -933,231 +984,43 @@ Resources:
         FROM "${GlueTable}"
         WHERE month >= DATE(to_iso8601(current_date - interval '6' month));
       WorkGroup: !Ref AthenaWorkgroup
-  AthenaQueryFOCUSSummaryView:
+  AthenaQueryFOCUSConsolidationView:
     Type: AWS::Athena::NamedQuery
     Properties:
       Database: customer_cur_data
-      Description: Cloud Intelligence Dashboard for Azure FOCUS export Athena Named Query Summary View
-      Name: !Sub ${PrefixCode}atq${EnvironmentCode}cidazurefocussummaryview
+      Description: Cloud Intelligence Dashboard for Azure FOCUS export Athena Named Query Consolidation View
+      Name: !Sub ${PrefixCode}atq${EnvironmentCode}cidazurefocusconsolidationview
       QueryString: !Sub |
-        CREATE OR REPLACE VIEW "focus_summary_view_azure" AS 
+        CREATE OR REPLACE VIEW "focus_consolidation_view" AS 
         SELECT
             AvailabilityZone,
+            BilledCost,
             BillingAccountId,
             BillingAccountName,
             BillingCurrency,
-            CAST(BillingPeriodStart AS DATE) AS BillingPeriodStart,
-            ChargeCategory,
-            ChargeClass,
-            ChargeDescription,
-            ChargeFrequency,
-            CAST(
-                (CASE 
-                    WHEN (date_trunc('month', ChargePeriodStart) >= (date_trunc('month', current_timestamp) - INTERVAL '3' MONTH)) 
-                    THEN date_trunc('day', ChargePeriodStart) 
-                    ELSE date_trunc('month', ChargePeriodStart) 
-                END) AS DATE
-            ) AS ChargePeriodStart,
-            CommitmentDiscountCategory,
-            CommitmentDiscountId,
-            CommitmentDiscountName,
-            CommitmentDiscountType,
-            CommitmentDiscountStatus,
-            ConsumedUnit,
-            InvoiceIssuerName,
-            PricingCategory,
-            PricingUnit,
-            ProviderName,
-            PublisherName,
-            RegionId,
-            RegionName,
-            ServiceCategory,
-            ServiceName,
-            SkuId,
-            SkuPriceId,
-            SubAccountId,
-            SubAccountName,
-            Tags,
-            -- 1/4 Extract specific tag values from Tags column. AWS user tags are lowercase and prefixed with user_
-            TRY(element_at(Tags, 'user_customer')) AS "tag_Customer",
-            TRY(element_at(Tags, 'user_environment')) AS "tag_Environment",
-            TRY(element_at(Tags, 'user_project')) AS "tag_Project",
-            -- Tag extraction section END
-            billing_period,
-            'Azure Only Field' AS x_ResourceGroupName,
-            SUM(ContractedUnitPrice) AS ContractedUnitPrice,
-            SUM(ListUnitPrice) AS ListUnitPrice,
-            SUM(BilledCost) AS BilledCost,
-            SUM(ContractedCost) AS ContractedCost,
-            SUM(EffectiveCost) AS EffectiveCost,
-            SUM(ListCost) AS ListCost,
-            SUM(ConsumedQuantity) AS ConsumedQuantity,
-            SUM(PricingQuantity) AS PricingQuantity
-        FROM
-            -- Default AWS FOCUS database name and table used below. Change if necessary
-            "cid_data_export"."focus"
-        WHERE 
-            (BillingPeriodStart >= (date_trunc('month', current_timestamp) - INTERVAL '7' MONTH)) 
-            AND (CAST(concat(billing_period, '-01') AS DATE) >= (date_trunc('month', current_date) - INTERVAL '7' MONTH))
-        GROUP BY 
-            AvailabilityZone,
-            BillingAccountId,
-            BillingAccountName,
-            BillingCurrency,
+            BillingPeriodEnd,
             BillingPeriodStart,
             ChargeCategory,
             ChargeClass,
             ChargeDescription,
             ChargeFrequency,
+            ChargePeriodEnd,
             ChargePeriodStart,
             CommitmentDiscountCategory,
             CommitmentDiscountId,
             CommitmentDiscountName,
             CommitmentDiscountType,
             CommitmentDiscountStatus,
+            ConsumedQuantity,
             ConsumedUnit,
+            ContractedCost,
+            ContractedUnitPrice,
+            EffectiveCost,
             InvoiceIssuerName,
+            ListCost,
+            ListUnitPrice,
             PricingCategory,
-            PricingUnit,
-            ProviderName,
-            PublisherName,
-            RegionId,
-            RegionName,
-            ServiceCategory,
-            ServiceName,
-            SkuId,
-            SkuPriceId,
-            SubAccountId,
-            SubAccountName,
-            Tags,
-            -- 2/4 Extract specific tag values from the Tags column. AWS user tags are lowercase and prefixed with user_
-            TRY(element_at(Tags, 'user_customer')),
-            TRY(element_at(Tags, 'user_environment')),
-            TRY(element_at(Tags, 'user_project')),
-            -- Tag extraction section END
-            billing_period,
-            'Azure Only Field'
-
-        UNION ALL
-
-        SELECT
-            NULL AS AvailabilityZone,
-            BillingAccountId,
-            BillingAccountName,
-            BillingCurrency,
-            BillingPeriodStart,
-            ChargeCategory,
-            ChargeClass,
-            ChargeDescription,
-            ChargeFrequency,
-            ChargePeriodStart,
-            CommitmentDiscountCategory,
-            CommitmentDiscountId,
-            CommitmentDiscountName,
-            CommitmentDiscountType,
-            CommitmentDiscountStatus,
-            ConsumedUnit,
-            InvoiceIssuerName,
-            PricingCategory,
-            PricingUnit,
-            ProviderName,
-            PublisherName,
-            RegionId,
-            RegionName,
-            ServiceCategory,
-            ServiceName,
-            SkuId,
-            SkuPriceId,
-            SubAccountId,
-            SubAccountName,
-            Tags,
-            -- 3/4 Extract specific tag values from the Tags column
-            TRY(element_at(Tags, 'Customer')) AS "tag_Customer",
-            TRY(element_at(Tags, 'Environment')) AS "tag_Environment",
-            TRY(element_at(Tags, 'Project')) AS "tag_Project",
-            -- Tag extraction section END
-            '' AS billing_period,
-            x_ResourceGroupName,
-            SUM(ContractedUnitPrice) AS ContractedUnitPrice,
-            SUM(ListUnitPrice) AS ListUnitPrice,
-            SUM(BilledCost) AS BilledCost,
-            SUM(ContractedCost) AS ContractedCost,
-            SUM(EffectiveCost) AS EffectiveCost,
-            SUM(ListCost) AS ListCost,
-            SUM(ConsumedQuantity) AS ConsumedQuantity,
-            SUM(PricingQuantity) AS PricingQuantity
-        FROM
-            "${GlueDatabase}"."${GlueTable}"
-        GROUP BY 
-            BillingAccountId,
-            BillingAccountName,
-            BillingCurrency,
-            BillingPeriodStart,
-            ChargeCategory,
-            ChargeClass,
-            ChargeDescription,
-            ChargeFrequency,
-            ChargePeriodStart,
-            CommitmentDiscountCategory,
-            CommitmentDiscountId,
-            CommitmentDiscountName,
-            CommitmentDiscountType,
-            CommitmentDiscountStatus,
-            ConsumedUnit,
-            InvoiceIssuerName,
-            PricingCategory,
-            PricingUnit,
-            ProviderName,
-            PublisherName,
-            RegionId,
-            RegionName,
-            ServiceCategory,
-            ServiceName,
-            SkuId,
-            SkuPriceId,
-            SubAccountId,
-            SubAccountName,
-            Tags,
-            -- 4/4 Extract specific tag values from the Tags column
-            TRY(element_at(Tags, 'Customer')),
-            TRY(element_at(Tags, 'Environment')),
-            TRY(element_at(Tags, 'Project')),
-            -- Tag extraction section END
-            x_ResourceGroupName
-      WorkGroup: !Ref AthenaWorkgroup
-  AthenaQueryFOCUSResourceView:
-    Type: AWS::Athena::NamedQuery
-    Properties:
-      Database: customer_cur_data
-      Description: Cloud Intelligence Dashboard for Azure FOCUS export Athena Named Query Resource View
-      Name: !Sub ${PrefixCode}atq${EnvironmentCode}cidazurefocusresourceview
-      QueryString: !Sub |
-        CREATE OR REPLACE VIEW "focus_resource_view_azure" AS
-        SELECT
-            AvailabilityZone,
-            BillingAccountId,
-            BillingAccountName,
-            BillingCurrency,
-            CAST(BillingPeriodStart AS DATE) AS BillingPeriodStart,
-            ChargeCategory,
-            ChargeClass,
-            ChargeDescription,
-            ChargeFrequency,
-            CAST(
-                CASE 
-                    WHEN date_trunc('month', ChargePeriodStart) >= date_trunc('month', current_timestamp) - INTERVAL '3' MONTH 
-                    THEN date_trunc('day', ChargePeriodStart) 
-                    ELSE date_trunc('month', ChargePeriodStart) 
-                END AS DATE
-            ) AS ChargePeriodStart,
-            CommitmentDiscountCategory,
-            CommitmentDiscountId,
-            CommitmentDiscountName,
-            CommitmentDiscountType,
-            CommitmentDiscountStatus,
-            ConsumedUnit,
-            InvoiceIssuerName,
-            PricingCategory,
+            PricingQuantity,
             PricingUnit,
             ProviderName,
             PublisherName,
@@ -1173,91 +1036,42 @@ Resources:
             SubAccountId,
             SubAccountName,
             Tags,
-            -- Extract specific tag values from the Tags column 1/4
-            TRY(element_at(Tags, 'Customer')) AS "tag_Customer",
-            TRY(element_at(Tags, 'Environment')) AS "tag_Environment",
-            TRY(element_at(Tags, 'Project')) AS "tag_Project",
-            -- Tag extraction section END
-            billing_period,
-            'Azure Only Field' AS x_ResourceGroupName,
-            SUM(ContractedUnitPrice) AS ContractedUnitPrice,
-            SUM(ListUnitPrice) AS ListUnitPrice,
-            SUM(BilledCost) AS BilledCost,
-            SUM(ContractedCost) AS ContractedCost,
-            SUM(EffectiveCost) AS EffectiveCost,
-            SUM(ListCost) AS ListCost,
-            SUM(ConsumedQuantity) AS ConsumedQuantity,
-            SUM(PricingQuantity) AS PricingQuantity
+            billing_period
         FROM
             -- Default AWS FOCUS database name and table used below. Change if necessary
-            "cid_data_export"."focus"
-        WHERE 
-            (current_date - INTERVAL '30' DAY) <= ChargePeriodStart 
-            AND ResourceId <> '' 
-            AND CAST(CONCAT(billing_period, '-01') AS DATE) >= date_trunc('month', current_date - INTERVAL '30' DAY)
-        GROUP BY 
-            AvailabilityZone,
-            BillingAccountId,
-            BillingAccountName,
-            BillingCurrency,
-            BillingPeriodStart,
-            ChargeCategory,
-            ChargeClass,
-            ChargeDescription,
-            ChargeFrequency,
-            ChargePeriodStart,
-            CommitmentDiscountCategory,
-            CommitmentDiscountId,
-            CommitmentDiscountName,
-            CommitmentDiscountType,
-            CommitmentDiscountStatus,
-            ConsumedUnit,
-            InvoiceIssuerName,
-            PricingCategory,
-            PricingUnit,
-            ProviderName,
-            PublisherName,
-            RegionId,
-            RegionName,
-            ResourceId,
-            ResourceName,
-            ResourceType,
-            ServiceCategory,
-            ServiceName,
-            SkuId,
-            SkuPriceId,
-            SubAccountId,
-            SubAccountName,
-            Tags,
-            -- Extract specific tag values from the Tags column 2/4
-            TRY(element_at(Tags, 'Customer')),
-            TRY(element_at(Tags, 'Environment')),
-            TRY(element_at(Tags, 'Project')),
-            -- Tag extraction section END
-            billing_period,
-            'Azure Only Field'
+            "${DataExportsDatabaseName}"."focus"
             
         UNION ALL
 
         SELECT
             NULL AS AvailabilityZone,
+            BilledCost,
             BillingAccountId,
             BillingAccountName,
             BillingCurrency,
+            BillingPeriodEnd,
             BillingPeriodStart,
             ChargeCategory,
             ChargeClass,
             ChargeDescription,
             ChargeFrequency,
+            ChargePeriodEnd,
             ChargePeriodStart,
             CommitmentDiscountCategory,
             CommitmentDiscountId,
             CommitmentDiscountName,
             CommitmentDiscountType,
             CommitmentDiscountStatus,
+            ConsumedQuantity,
             ConsumedUnit,
+            ContractedCost,
+            ContractedUnitPrice,
+            EffectiveCost,
             InvoiceIssuerName,
+            ListCost,
+            ListUnitPrice,
             PricingCategory,
+            PricingQuantity,
             PricingUnit,
             ProviderName,
             PublisherName,
@@ -1273,62 +1087,9 @@ Resources:
             SubAccountId,
             SubAccountName,
             Tags,
-            -- Extract specific tag values from the Tags column 3/4
-            TRY(element_at(Tags, 'Customer')) AS "tag_Customer",
-            TRY(element_at(Tags, 'Environment')) AS "tag_Environment",
-            TRY(element_at(Tags, 'Project')) AS "tag_Project",
-            -- Tag extraction section END
-            '' AS billing_period,
-            x_ResourceGroupName,
-            SUM(ContractedUnitPrice) AS ContractedUnitPrice,
-            SUM(ListUnitPrice) AS ListUnitPrice,
-            SUM(BilledCost) AS BilledCost,
-            SUM(ContractedCost) AS ContractedCost,
-            SUM(EffectiveCost) AS EffectiveCost,
-            SUM(ListCost) AS ListCost,
-            SUM(ConsumedQuantity) AS ConsumedQuantity,
-            SUM(PricingQuantity) AS PricingQuantity
+            billing_period
         FROM
             "${GlueDatabase}"."${GlueTable}"
-        GROUP BY 
-            BillingAccountId,
-            BillingAccountName,
-            BillingCurrency,
-            BillingPeriodStart,
-            ChargeCategory,
-            ChargeClass,
-            ChargeDescription,
-            ChargeFrequency,
-            ChargePeriodStart,
-            CommitmentDiscountCategory,
-            CommitmentDiscountId,
-            CommitmentDiscountName,
-            CommitmentDiscountType,
-            CommitmentDiscountStatus,
-            ConsumedUnit,
-            InvoiceIssuerName,
-            PricingCategory,
-            PricingUnit,
-            ProviderName,
-            PublisherName,
-            RegionId,
-            RegionName,
-            ResourceId,
-            ResourceName,
-            ResourceType,
-            ServiceCategory,
-            ServiceName,
-            SkuId,
-            SkuPriceId,
-            SubAccountId,
-            SubAccountName,
-            Tags,
-            -- Extract specific tag values from the Tags column 4/4
-            TRY(element_at(Tags, 'Customer')),
-            TRY(element_at(Tags, 'Environment')),
-            TRY(element_at(Tags, 'Project')),
-            -- Tag extraction section END
-            x_ResourceGroupName
       WorkGroup: !Ref AthenaWorkgroup
 
   ### Create Lambda Functions

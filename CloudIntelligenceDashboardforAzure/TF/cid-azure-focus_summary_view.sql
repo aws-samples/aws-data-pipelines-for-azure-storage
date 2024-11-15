@@ -1,21 +1,19 @@
-CREATE OR REPLACE VIEW "focus_summary_view_azure" AS 
+CREATE OR REPLACE VIEW "focus_summary_view" AS 
 SELECT
     AvailabilityZone,
     BillingAccountId,
     BillingAccountName,
     BillingCurrency,
-    CAST(BillingPeriodStart AS DATE) AS BillingPeriodStart,
+    CAST(BillingPeriodStart AS Date) BillingPeriodStart,
     ChargeCategory,
     ChargeClass,
     ChargeDescription,
     ChargeFrequency,
-    CAST(
-        (CASE 
-            WHEN (date_trunc('month', ChargePeriodStart) >= (date_trunc('month', current_timestamp) - INTERVAL '3' MONTH)) 
-            THEN date_trunc('day', ChargePeriodStart) 
-            ELSE date_trunc('month', ChargePeriodStart) 
-        END) AS DATE
-    ) AS ChargePeriodStart,
+    CAST((CASE 
+        WHEN ("date_trunc"('month', ChargePeriodStart) >= ("date_trunc"('month', current_timestamp) - INTERVAL '3' MONTH)) 
+        THEN "date_trunc"('day', ChargePeriodStart) 
+        ELSE "date_trunc"('month', ChargePeriodStart) 
+    END) AS date) "ChargePeriodStart",
     CommitmentDiscountCategory,
     CommitmentDiscountId,
     CommitmentDiscountName,
@@ -43,20 +41,19 @@ SELECT
     -- Tag extraction section END
     billing_period,
     'Azure Only Field' AS x_ResourceGroupName,
-    SUM(ContractedUnitPrice) AS ContractedUnitPrice,
-    SUM(ListUnitPrice) AS ListUnitPrice,
-    SUM(BilledCost) AS BilledCost,
-    SUM(ContractedCost) AS ContractedCost,
-    SUM(EffectiveCost) AS EffectiveCost,
-    SUM(ListCost) AS ListCost,
-    SUM(ConsumedQuantity) AS ConsumedQuantity,
-    SUM(PricingQuantity) AS PricingQuantity
+    sum(ContractedUnitPrice) ContractedUnitPrice,
+    sum(ListUnitPrice) ListUnitPrice,
+    sum(BilledCost) BilledCost,
+    sum(ContractedCost) ContractedCost,
+    sum(EffectiveCost) EffectiveCost,
+    sum(ListCost) ListCost,
+    sum(ConsumedQuantity) ConsumedQuantity,
+    sum(PricingQuantity) PricingQuantity
 FROM
-    -- Default AWS FOCUS database name and table used below. Change if necessary
-    "cid_data_export"."focus"
+    focus_consolidation_view
 WHERE 
-    (BillingPeriodStart >= (date_trunc('month', current_timestamp) - INTERVAL '7' MONTH)) 
-    AND (CAST(concat(billing_period, '-01') AS DATE) >= (date_trunc('month', current_date) - INTERVAL '7' MONTH))
+    ("BillingPeriodStart" >= ("date_trunc"('month', current_timestamp) - INTERVAL '7' MONTH))
+    AND (CAST(concat(billing_period, '-01') AS date) >= ("date_trunc"('month', current_date) - INTERVAL '7' MONTH))
 GROUP BY 
     AvailabilityZone,
     BillingAccountId,
@@ -136,17 +133,18 @@ SELECT
     -- Tag extraction section END
     '' AS billing_period,
     x_ResourceGroupName,
-    SUM(ContractedUnitPrice) AS ContractedUnitPrice,
-    SUM(ListUnitPrice) AS ListUnitPrice,
-    SUM(BilledCost) AS BilledCost,
-    SUM(ContractedCost) AS ContractedCost,
-    SUM(EffectiveCost) AS EffectiveCost,
-    SUM(ListCost) AS ListCost,
-    SUM(ConsumedQuantity) AS ConsumedQuantity,
-    SUM(PricingQuantity) AS PricingQuantity
+    sum(ContractedUnitPrice) ContractedUnitPrice,
+    sum(ListUnitPrice) ListUnitPrice,
+    sum(BilledCost) BilledCost,
+    sum(ContractedCost) ContractedCost,
+    sum(EffectiveCost) EffectiveCost,
+    sum(ListCost) ListCost,
+    sum(ConsumedQuantity) ConsumedQuantity,
+    sum(PricingQuantity) PricingQuantity
 FROM
+    -- Azure FOCUS Glue database and table i.e. "cidgldpdcidazure"."cidgltpdcidazure"
     "${var_glue_database}"."${var_glue_table}"
-GROUP BY 
+GROUP BY
     BillingAccountId,
     BillingAccountName,
     BillingCurrency,

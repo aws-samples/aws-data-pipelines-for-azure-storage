@@ -144,6 +144,60 @@ resource "aws_iam_role_policy" "cidazurequicksight" {
   })
 }
 
+resource "aws_iam_role_policy" "cidazurequicksightfocus" {
+  count  = var.ExportType == "FOCUS" ? 1 : 0
+  name   = format("%s%s%s%s", var.PrefixCode, "irp", var.EnvironmentCode, "cidazurequicksightfocus")
+  role   = var.QuickSightFocusRole
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "s3:ListBucket",
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:ListBucketMultipartUploads",
+          "s3:GetBucketLocation",
+          "s3:PutObject",
+          "s3:GetObjectAcl",
+          "s3:AbortMultipartUpload",
+          "s3:ListMultipartUploadParts"
+        ]
+        Effect = "Allow"
+        Resource = [
+          "${aws_s3_bucket.S3Bucket.arn}",
+          "${aws_s3_bucket.S3Bucket.arn}/*"
+        ]
+      },
+      {
+        Action = [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:GenerateDataKey"
+        ]
+        Effect = "Allow"
+        Resource = [
+          "${aws_kms_key.KMSKey.arn}"
+        ]
+      },
+      {
+        Action = [
+          "glue:GetDatabase",
+          "glue:GetTable",
+          "glue:GetPartition",
+          "glue:GetPartitions"
+        ]
+        Effect = "Allow"
+        Resource = [
+          "arn:aws:glue:${var.Region}:${data.aws_caller_identity.current.account_id}:catalog",
+          "${aws_glue_catalog_database.cidazure.arn}",
+          "${aws_glue_catalog_table.cidazure.arn}"
+        ]
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy" "disablemultipartpolicy" {
   name = format("%s%s%s%s", var.PrefixCode, "irp", var.EnvironmentCode, "disablemultipart")
   role = aws_iam_role.GlueIAM.id
@@ -263,6 +317,9 @@ resource "aws_glue_catalog_table" "cidazure" {
       }
     }
   }
+    lifecycle {
+      ignore_changes = all
+    }
 }
 
 resource "aws_glue_job" "cidazure" {
@@ -556,32 +613,20 @@ resource "aws_athena_named_query" "cidazure" {
     }
   )
 }
-
-resource "aws_athena_named_query" "cidazurefocussummary" {
-  name        = format("%s%s%s%s", var.PrefixCode, "atq", var.EnvironmentCode, "cidazure-focus-summary-view")
-  description = "Cloud Intelligence Dashboard for Azure FOCUS export Athena Named Query Summary View"
+resource "aws_athena_named_query" "cidazurefocusconsolidation" {
+  name        = format("%s%s%s%s", var.PrefixCode, "atq", var.EnvironmentCode, "cidazure-focus-consolidation-view")
+  description = "Cloud Intelligence Dashboard for Azure FOCUS export Athena Named Query Consolidation View"
   workgroup   = aws_athena_workgroup.cidazure.id
   database    = aws_glue_catalog_database.cidazure.name
-  query = templatefile("cid-azure-focus_summary_view.sql",
+  query = templatefile("cid-azure-focus_consolidation_view.sql",
     {
-      var_glue_database = aws_glue_catalog_database.cidazure.name
-      var_glue_table    = aws_glue_catalog_table.cidazure.name
+      var_glue_database              = aws_glue_catalog_database.cidazure.name
+      var_glue_table                 = aws_glue_catalog_table.cidazure.name
+      var_data_exports_database_name = var.DataExportsDatabaseName
     }
   )
 }
 
-resource "aws_athena_named_query" "cidazurefocusresource" {
-  name        = format("%s%s%s%s", var.PrefixCode, "atq", var.EnvironmentCode, "cidazure-focus-resource-view")
-  description = "Cloud Intelligence Dashboard for Azure FOCUS export Athena Named Query Resource View"
-  workgroup   = aws_athena_workgroup.cidazure.id
-  database    = aws_glue_catalog_database.cidazure.name
-  query = templatefile("cid-azure-focus_resource_view.sql",
-    {
-      var_glue_database = aws_glue_catalog_database.cidazure.name
-      var_glue_table    = aws_glue_catalog_table.cidazure.name
-    }
-  )
-}
 ### Create installation log
 resource "aws_lambda_function" "LambdaFunctionLog" {
   filename      = "cid-azure-lambdalog.zip"

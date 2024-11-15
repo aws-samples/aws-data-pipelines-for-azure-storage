@@ -22,7 +22,7 @@ variable "EnvironmentTag" {
   default     = "Production"
 }
 variable "QuickSightServiceRole" {
-  description = "IAM Role used by QuickSight to access Amazon S3. You may not have the below service role or you may have setup a custom role such as CidCmdQuickSightDataSourceRole"
+  description = "IAM Role used by QuickSight to access Amazon S3 for Standard export. You may not have the below service role or you may have setup a custom role such as CidCmdQuickSightDataSourceRole"
   type        = string
   default     = "aws-quicksight-service-role-v0"
 }
@@ -105,6 +105,18 @@ variable "AzureFocusVersion" {
     condition     = var.AzureFocusVersion == "v1.0r2" || var.AzureFocusVersion == "v1.0"
     error_message = "v1.0r2, v1.0"
   }
+}
+
+variable "DataExportsDatabaseName" {
+  description = "If you are using the FOCUS export option, enter the name of the AWS FOCUS Glue Database"
+  type        = string
+  default     = "cid_data_export"
+}
+
+variable "QuickSightFocusRole" {
+  description = "IAM Role used by QuickSight to access Amazon S3 for FOCUS export. This should match the role used in the Cloud-Intelligence-Dashboards CFN stack"
+  type        = string
+  default     = "CidQuickSightDataSourceRole"
 }
 
 # Data Copy Settings
