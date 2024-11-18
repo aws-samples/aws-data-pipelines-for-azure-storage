@@ -34,10 +34,14 @@ SELECT
     SubAccountId,
     SubAccountName,
     Tags,
-    -- 1/4 Extract specific tag values from the Tags MAP column. AWS user tags are lowercase and prefixed with user_
-    TRY(element_at(Tags, 'user_customer')) AS "tag_Customer",
-    TRY(element_at(Tags, 'user_environment')) AS "tag_Environment",
-    TRY(element_at(Tags, 'user_project')) AS "tag_Project",
+    -- 1/4 Extract AWS specific tag values from the Tags MAP column. AWS user tags are lowercase and prefixed with user_
+    TRY(element_at(Tags, 'user_customer')) AS "tag_Customer_aws",
+    TRY(element_at(Tags, 'user_environment')) AS "tag_Environment_aws",
+    TRY(element_at(Tags, 'user_project')) AS "tag_Project_aws",
+    -- 2/4 Extract Azure specific tag values from the Tags MAP column
+    TRY(element_at(Tags, 'Customer')) AS "tag_Customer_azure",
+    TRY(element_at(Tags, 'Environment')) AS "tag_Environment_azure",
+    TRY(element_at(Tags, 'Project')) AS "tag_Project_azure",
     -- Tag extraction section END
     billing_period,
     'Azure Only Field' AS x_ResourceGroupName,
@@ -85,98 +89,16 @@ GROUP BY
     SubAccountId,
     SubAccountName,
     Tags,
-    -- 2/4 Extract specific tag values from the Tags MAP column. AWS user tags are lowercase and prefixed with user_
+    -- 3/4 Extract AWS specific tag values from the Tags MAP column. AWS user tags are lowercase and prefixed with user_
     TRY(element_at(Tags, 'user_customer')),
     TRY(element_at(Tags, 'user_environment')),
     TRY(element_at(Tags, 'user_project')),
-    -- Tag extraction section END
-    billing_period,
-    'Azure Only Field'
-
-UNION ALL
-
-SELECT
-    NULL AS AvailabilityZone,
-    BillingAccountId,
-    BillingAccountName,
-    BillingCurrency,
-    BillingPeriodStart,
-    ChargeCategory,
-    ChargeClass,
-    ChargeDescription,
-    ChargeFrequency,
-    ChargePeriodStart,
-    CommitmentDiscountCategory,
-    CommitmentDiscountId,
-    CommitmentDiscountName,
-    CommitmentDiscountType,
-    CommitmentDiscountStatus,
-    ConsumedUnit,
-    InvoiceIssuerName,
-    PricingCategory,
-    PricingUnit,
-    ProviderName,
-    PublisherName,
-    RegionId,
-    RegionName,
-    ServiceCategory,
-    ServiceName,
-    SkuId,
-    SkuPriceId,
-    SubAccountId,
-    SubAccountName,
-    Tags,
-    -- 3/4 Extract specific tag values from the Tags MAP column
-    TRY(element_at(Tags, 'Customer')) AS "tag_Customer",
-    TRY(element_at(Tags, 'Environment')) AS "tag_Environment",
-    TRY(element_at(Tags, 'Project')) AS "tag_Project",
-    -- Tag extraction section END
-    '' AS billing_period,
-    x_ResourceGroupName,
-    sum(ContractedUnitPrice) ContractedUnitPrice,
-    sum(ListUnitPrice) ListUnitPrice,
-    sum(BilledCost) BilledCost,
-    sum(ContractedCost) ContractedCost,
-    sum(EffectiveCost) EffectiveCost,
-    sum(ListCost) ListCost,
-    sum(ConsumedQuantity) ConsumedQuantity,
-    sum(PricingQuantity) PricingQuantity
-FROM
-    -- Azure FOCUS Glue database and table i.e. "cidgldpdcidazure"."cidgltpdcidazure"
-    "${var_glue_database}"."${var_glue_table}"
-GROUP BY
-    BillingAccountId,
-    BillingAccountName,
-    BillingCurrency,
-    BillingPeriodStart,
-    ChargeCategory,
-    ChargeClass,
-    ChargeDescription,
-    ChargeFrequency,
-    ChargePeriodStart,
-    CommitmentDiscountCategory,
-    CommitmentDiscountId,
-    CommitmentDiscountName,
-    CommitmentDiscountType,
-    CommitmentDiscountStatus,
-    ConsumedUnit,
-    InvoiceIssuerName,
-    PricingCategory,
-    PricingUnit,
-    ProviderName,
-    PublisherName,
-    RegionId,
-    RegionName,
-    ServiceCategory,
-    ServiceName,
-    SkuId,
-    SkuPriceId,
-    SubAccountId,
-    SubAccountName,
-    Tags,
-    -- 4/4 Extract specific tag values from the Tags MAP column
+    -- 4/4 Extract Azure specific tag values from the Tags MAP column
     TRY(element_at(Tags, 'Customer')),
     TRY(element_at(Tags, 'Environment')),
     TRY(element_at(Tags, 'Project')),
     -- Tag extraction section END
-    x_ResourceGroupName
+
+    -- Tag extraction section END
+    billing_period,
+    'Azure Only Field'
