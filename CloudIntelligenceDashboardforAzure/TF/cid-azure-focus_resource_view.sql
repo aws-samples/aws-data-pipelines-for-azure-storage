@@ -76,7 +76,7 @@ GROUP BY
         WHEN ("date_trunc"('month', ChargePeriodStart) >= ("date_trunc"('month', current_timestamp) - INTERVAL '3' MONTH)) 
         THEN "date_trunc"('day', ChargePeriodStart) 
         ELSE "date_trunc"('month', ChargePeriodStart) 
-    END) AS date), -- Change is here
+    END) AS date),
     CommitmentDiscountCategory,
     CommitmentDiscountId,
     CommitmentDiscountName,
