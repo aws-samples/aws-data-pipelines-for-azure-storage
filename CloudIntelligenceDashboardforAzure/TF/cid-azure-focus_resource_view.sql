@@ -67,12 +67,16 @@ GROUP BY
     BillingAccountId,
     BillingAccountName,
     BillingCurrency,
-    BillingPeriodStart,
+    CAST(BillingPeriodStart AS Date),
     ChargeCategory,
     ChargeClass,
     ChargeDescription,
     ChargeFrequency,
-    ChargePeriodStart,
+    CAST((CASE 
+        WHEN ("date_trunc"('month', ChargePeriodStart) >= ("date_trunc"('month', current_timestamp) - INTERVAL '3' MONTH)) 
+        THEN "date_trunc"('day', ChargePeriodStart) 
+        ELSE "date_trunc"('month', ChargePeriodStart) 
+    END) AS date), -- Change is here
     CommitmentDiscountCategory,
     CommitmentDiscountId,
     CommitmentDiscountName,
