@@ -136,7 +136,8 @@ if var_bulk_run == 'true':
         variables = environment.get('Variables', {})
 
         # Update partitionSize
-        variables['partitionSize'] = '10737418240'
+        # Was 10737418240
+        variables['partitionSize'] = '104857600'
 
         # Update function configuration with the modified environment variables
         response = lambda_client.update_function_configuration(
