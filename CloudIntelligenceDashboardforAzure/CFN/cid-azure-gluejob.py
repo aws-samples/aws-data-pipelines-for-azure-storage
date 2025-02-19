@@ -270,9 +270,11 @@ try:
     if 'Contents' in response:
         id_months = df2.select(date_trunc("month", "Month")).distinct()
         new_months = [var_parquet_path + 'Month=' + f"{row[0].strftime('%Y-%m-%d')}" for row in id_months.collect()]
-        # Remove Parquet files, older than 12 hours, that match the months identified above. Use 'retentionPeriod': 0.00069444444 for testing sets to 1 minute
+        # Purge parquet files from matching partitions keeping only last minute of files
+        print(f"INFO: Starting parquet cleanup for {len(new_months)} billing period partition(s)")
         for path in new_months:
             glueContext.purge_s3_path(path, {'retentionPeriod': 0.00069444444})
+            print(f"INFO: Purged files in partition: {path}")
     else:
         print("INFO: Parquet folder does not exist. No files to deduplicate")
 except Exception as e:

@@ -235,23 +235,26 @@ from pyspark.sql.functions import trunc
 df2 = df2.withColumn("BILLING_PERIOD", date_format(to_timestamp("BillingPeriodStart"), "yyyy-MM"))
 
 ### Parquet clean up to avoid duplication.
-from pyspark.sql.functions import date_trunc
+from pyspark.sql.functions import date_trunc, col
 
 try:
     s3 = boto3.client('s3')
     response = s3.list_objects_v2(Bucket=var_bucket, Prefix=var_parquet_folder)
     if 'Contents' in response:
-        id_months = df2.select(date_trunc("month", "BILLING_PERIOD")).distinct()
-        new_months = [var_parquet_path + 'BILLING_PERIOD=' + f"{row[0].strftime('%Y-%m-%d')}" for row in id_months.collect()]
-        # Remove Parquet files, older than 12 hours, that match the months identified above. Use 'retentionPeriod': 0.00069444444 for testing sets to 1 minute
+        id_months = df2.select(date_trunc("month", col("BILLING_PERIOD"))).distinct()
+        new_months = [var_parquet_path + 'BILLING_PERIOD=' + f"{row[0].strftime('%Y-%m')}" for row in id_months.collect()]
+        # Purge parquet files from matching partitions keeping only last minute of files
+        print(f"INFO: Starting parquet cleanup for {len(new_months)} billing period partition(s)")
         for path in new_months:
             glueContext.purge_s3_path(path, {'retentionPeriod': 0.00069444444})
+            print(f"INFO: Purged files in partition: {path}")
     else:
         print("INFO: Parquet folder does not exist. No files to deduplicate")
 except Exception as e:
     # If CSV cannot be processed move to error folder
-    copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
-    delete_s3_folder(var_bucket, var_raw_folder)
+    if var_bulk_run == 'false':
+        copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_error_folder)
+        delete_s3_folder(var_bucket, var_raw_folder)
     print("WARNING: Cannot deduplicate. Error in CSV file(s). Moved to error folder")
     print("ERROR: {}".format(e))
     raise e
@@ -280,5 +283,5 @@ copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_processed_folder)
 delete_s3_folder(var_bucket, var_raw_folder)
 
 ### Sample Jupyter Notebook tests
-# df1.select('ChargePeriodEnd','BillingPeriodStart','BillingPeriodEnd','ChargeDescription','BilledCost','Tags','file_path','BILLING_PERIOD').show(100)
+# df2.select('BillingPeriodEnd','BillingPeriodStart','ChargePeriodEnd','ChargePeriodStart','EffectiveCost','Tags','file_path','BILLING_PERIOD').show(100)
 # df1.printSchema()

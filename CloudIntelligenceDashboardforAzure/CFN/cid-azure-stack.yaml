@@ -864,6 +864,7 @@ Resources:
       Name: !Sub ${PrefixCode}smp${EnvironmentCode}-cidazure-gluenotebookargs
       Type: String
       Value: !Sub |
+          var_bulk_run = 'false'
           var_raw_path = 's3://${S3Bucket}/azurecidraw/'
           var_parquet_path = 's3://${S3Bucket}/azurecidparquet/'
           var_processed_path = 's3://${S3Bucket}/azurecidprocessed/'
@@ -894,6 +895,7 @@ Resources:
       Name: !Sub ${PrefixCode}smp${EnvironmentCode}-cidazure-gluenotebookargsFOCUS
       Type: String
       Value: !Sub |
+          var_bulk_run = 'false'
           var_raw_path = 's3://${S3Bucket}/azurecidraw/'
           var_parquet_path = 's3://${S3Bucket}/azurecidparquetfocus/'
           var_processed_path = 's3://${S3Bucket}/azurecidprocessedfocus/'
@@ -903,7 +905,7 @@ Resources:
           var_raw_folder = 'azurecidraw'
           var_processed_folder = 'azurecidprocessedfocus'
           var_parquet_folder = 'azurecidparquetfocus'
-          var_date_format = 'yyyy-MM-dd'T'HH:mm:ss'Z'
+          var_date_format = "yyyy-MM-dd'T'HH:mm:ss'Z'"
           var_folderpath = '${AzureFolderPath}'
           var_bulk_run_ssm_name = '${PrefixCode}smp${EnvironmentCode}cidazure-var_bulk_run'
           var_account_type = '${AccountType}'
