@@ -98,7 +98,5 @@ GROUP BY
     TRY(element_at(Tags, 'Environment')),
     TRY(element_at(Tags, 'Project')),
     -- Tag extraction section END
-
-    -- Tag extraction section END
     billing_period,
     'Azure Only Field'
