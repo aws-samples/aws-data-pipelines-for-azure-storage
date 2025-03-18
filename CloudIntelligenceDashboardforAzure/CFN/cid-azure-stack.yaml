@@ -704,7 +704,7 @@ Resources:
       Description: Glue ETL job for Azure Cloud Intelligence Dashboard
       Name: !Sub ${PrefixCode}glj${EnvironmentCode}cidazure
       Role: !Ref GlueIAM
-      GlueVersion: "4.0"
+      GlueVersion: "5.0"
       WorkerType: G.1X
       NumberOfWorkers: 5
       MaxRetries: 0
@@ -751,7 +751,7 @@ Resources:
       Description: Glue ETL job for Azure Cloud Intelligence Dashboard using FOCUS specification
       Name: !Sub ${PrefixCode}glj${EnvironmentCode}cidazurefocus
       Role: !Ref GlueIAM
-      GlueVersion: "4.0"
+      GlueVersion: "5.0"
       WorkerType: G.1X
       NumberOfWorkers: 5
       MaxRetries: 0

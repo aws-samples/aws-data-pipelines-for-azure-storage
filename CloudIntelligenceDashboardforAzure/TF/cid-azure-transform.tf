@@ -327,7 +327,7 @@ resource "aws_glue_job" "cidazure" {
   name                   = format("%s%s%s%s", var.PrefixCode, "glj", var.EnvironmentCode, "cidazure")
   description            = "Glue ETL job for Azure Cloud Intelligence Dashboard"
   role_arn               = aws_iam_role.GlueIAM.arn
-  glue_version           = "4.0"
+  glue_version           = "5.0"
   worker_type            = "G.1X"
   number_of_workers      = 5
   max_retries            = 0
@@ -413,7 +413,7 @@ resource "aws_glue_job" "cidazurefocus" {
   name                   = format("%s%s%s%s", var.PrefixCode, "glj", var.EnvironmentCode, "cidazurefocus")
   description            = "Glue ETL job for Azure Cloud Intelligence Dashboard"
   role_arn               = aws_iam_role.GlueIAM.arn
-  glue_version           = "4.0"
+  glue_version           = "5.0"
   worker_type            = "G.1X"
   number_of_workers      = 5
   max_retries            = 0
