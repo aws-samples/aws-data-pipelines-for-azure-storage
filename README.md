@@ -79,7 +79,7 @@ For an introduction refer to [How to view Azure costs using Amazon QuickSight](h
 
 To deploy using Cloudformation or Terraform, follow instructions in the [Cloud Intelligence Dashboard for Azure workshop](https://catalog.workshops.aws/cidforazure).
 
-To understand how the Azure Cost Usage files should be provided, take a look at the examples [here](https://microsoft.github.io/finops-toolkit/data#%EF%B8%8F-dataset-examples).
+To understand how the Azure Cost Usage files should be provided, take a look at the dataset examples download [here](https://microsoft.github.io/finops-toolkit/open-data#download-open-data).
 
 ---
 
