@@ -76,13 +76,14 @@ ssm_client = boto3.client('ssm')
 var_bulk_run = ssm_client.get_parameter(Name=var_bulk_run_ssm_name)['Parameter']['Value']
 if var_bulk_run == 'true':
     print("INFO: Bulk run is set to {}, starting bulk run".format(var_bulk_run))
-    # Delete manifest.json files from raw folder
+    # Delete manifest.json files and 0-byte files from raw folder
     s3 = boto3.client('s3')
     response = s3.list_objects_v2(Bucket=var_bucket, Prefix=var_raw_folder)
     for obj in response.get('Contents', []):
         key = obj['Key']
-        if key.endswith('manifest.json'):
-            print(f"INFO: Deleting manifest file {key}")
+        size = obj['Size']
+        if key.endswith('manifest.json') or size == 0:
+            print(f"INFO: Deleting file {key} (size: {size} bytes)")
             s3.delete_object(Bucket=var_bucket, Key=key)
     # Copy CSV from raw to processed
     copy_s3_objects(var_bucket, var_raw_folder, var_bucket, var_processed_folder)
