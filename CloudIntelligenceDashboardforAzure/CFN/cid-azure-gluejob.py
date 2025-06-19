@@ -154,13 +154,14 @@ if var_bulk_run == 'true':
 else:
     print("INFO: Bulk run is set to {}, continuing with normal run".format(var_bulk_run))
 
-### Delete manifest.json files from raw folder
+### Delete manifest.json files and empty directory entries from raw folder
 s3 = boto3.client('s3')
 response = s3.list_objects_v2(Bucket=var_bucket, Prefix=var_raw_folder)
 for obj in response.get('Contents', []):
     key = obj['Key']
-    if key.endswith('manifest.json'):
-        print(f"INFO: Deleting manifest file {key}")
+    size = obj['Size']
+    if key.endswith('manifest.json') or (size == 0 and key.endswith('/')):
+        print(f"INFO: Deleting file {key} (size: {size} bytes)")
         s3.delete_object(Bucket=var_bucket, Key=key)
 
 ### Read CSV and append file_path column
