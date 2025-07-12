@@ -72,6 +72,10 @@ Parameters:
     Type: String
     Description: IAM Role used by QuickSight to access Amazon S3 for Standard export. You may not have the below service role or you may have setup a custom role such as CidCmdQuickSightDataSourceRole
     Default: aws-quicksight-service-role-v0
+  LayerVersion:
+    Type: String
+    Description: Version identifier for Lambda layers (change this value to force layer updates when upgrading Python versions)
+    Default: v1
 
   ### Microsoft Azure Parameters
   AccountType:
@@ -1100,8 +1104,8 @@ Resources:
     Properties:
       Description: Cloud Intelligence Dashboard Azure identity layer
       CompatibleRuntimes:
-        - python3.9
-      LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-identity
+        - python3.13
+      LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-identity-py313
       Content:
         S3Bucket: !Sub ${SourceBucket}
         S3Key: azure-arm-identity.zip
@@ -1110,8 +1114,8 @@ Resources:
     Properties:
       Description: Cloud Intelligence Dashboard Azure storage layer
       CompatibleRuntimes:
-        - python3.9
-      LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-storage
+        - python3.13
+      LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-storage-py313
       Content:
         S3Bucket: !Sub ${SourceBucket}
         S3Key: azure-arm-storage.zip
@@ -1137,7 +1141,7 @@ Resources:
       MemorySize: 128
       ReservedConcurrentExecutions: 1
       Role: !GetAtt LambdaIAM.Arn
-      Runtime: python3.9
+      Runtime: python3.13
       Timeout: 90
       TracingConfig:
         Mode: Active
@@ -1173,7 +1177,7 @@ Resources:
       MemorySize: 2560
       ReservedConcurrentExecutions: 1
       Role: !GetAtt LambdaIAM.Arn
-      Runtime: python3.9
+      Runtime: python3.13
       Timeout: 900
       TracingConfig:
         Mode: Active
@@ -1211,7 +1215,7 @@ Resources:
         S3Key: cid-azure-lambda03.zip
       MemorySize: 5120
       Role: !GetAtt LambdaIAM.Arn
-      Runtime: python3.9
+      Runtime: python3.13
       Timeout: 900
       TracingConfig:
         Mode: Active
@@ -1249,7 +1253,7 @@ Resources:
         S3Key: cid-azure-lambda04.zip
       MemorySize: 1024
       Role: !GetAtt LambdaIAM.Arn
-      Runtime: python3.9
+      Runtime: python3.13
       Timeout: 900
       TracingConfig:
         Mode: Active
@@ -1284,7 +1288,7 @@ Resources:
         S3Key: cid-azure-lambda05.zip
       MemorySize: 2056
       Role: !GetAtt LambdaIAM.Arn
-      Runtime: python3.9
+      Runtime: python3.13
       Timeout: 900
       TracingConfig:
         Mode: Active
@@ -1322,7 +1326,7 @@ Resources:
         S3Key: cid-azure-lambda06.zip
       MemorySize: 1024
       Role: !GetAtt LambdaIAM.Arn
-      Runtime: python3.9
+      Runtime: python3.13
       Timeout: 900
       TracingConfig:
         Mode: Active
@@ -1391,7 +1395,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Description: Cloud Intelligence Dashboard Lambda to record install of FOCUS solution
-      Runtime: python3.12
+      Runtime: python3.13
       FunctionName: !Sub ${PrefixCode}lmd${EnvironmentCode}cidazurelog
       Handler: index.lambda_handler
       MemorySize: 128

@@ -415,8 +415,8 @@ Resources:
     Properties:
       Description: Azure Blob to Amazon S3 CopyAzure identity layer
       CompatibleRuntimes:
-        - python3.9
-      LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-identity
+        - python3.13
+      LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-identity-py313
       Content:
         S3Bucket: !Sub ${SourceBucket}
         S3Key: azure-arm-identity.zip
@@ -425,8 +425,8 @@ Resources:
     Properties:
       Description: Azure Blob to Amazon S3 CopyAzure storage layer
       CompatibleRuntimes:
-        - python3.9
-      LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-storage
+        - python3.13
+      LayerName: !Sub ${PrefixCode}lml${EnvironmentCode}azure-arm-storage-py313
       Content:
         S3Bucket: !Sub ${SourceBucket}
         S3Key: azure-arm-storage.zip
@@ -452,7 +452,7 @@ Resources:
       MemorySize: 128
       ReservedConcurrentExecutions: 1
       Role: !GetAtt LambdaIAM.Arn
-      Runtime: python3.9
+      Runtime: python3.13
       Timeout: 90
       TracingConfig:
         Mode: Active
@@ -488,7 +488,7 @@ Resources:
       MemorySize: 2560
       ReservedConcurrentExecutions: 1
       Role: !GetAtt LambdaIAM.Arn
-      Runtime: python3.9
+      Runtime: python3.13
       Timeout: 900
       TracingConfig:
         Mode: Active
@@ -526,7 +526,7 @@ Resources:
         S3Key: azs3copy-lambda03.zip
       MemorySize: 5120
       Role: !GetAtt LambdaIAM.Arn
-      Runtime: python3.9
+      Runtime: python3.13
       Timeout: 900
       TracingConfig:
         Mode: Active
@@ -564,7 +564,7 @@ Resources:
         S3Key: azs3copy-lambda04.zip
       MemorySize: 1024
       Role: !GetAtt LambdaIAM.Arn
-      Runtime: python3.9
+      Runtime: python3.13
       Timeout: 900
       TracingConfig:
         Mode: Active
@@ -599,7 +599,7 @@ Resources:
         S3Key: azs3copy-lambda05.zip
       MemorySize: 2056
       Role: !GetAtt LambdaIAM.Arn
-      Runtime: python3.9
+      Runtime: python3.13
       Timeout: 900
       TracingConfig:
         Mode: Active
@@ -637,7 +637,7 @@ Resources:
         S3Key: azs3copy-lambda06.zip
       MemorySize: 1024
       Role: !GetAtt LambdaIAM.Arn
-      Runtime: python3.9
+      Runtime: python3.13
       Timeout: 900
       TracingConfig:
         Mode: Active

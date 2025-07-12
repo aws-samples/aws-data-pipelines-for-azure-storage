@@ -395,15 +395,15 @@ resource "aws_iam_role_policy" "EventBridgeIAM" {
 ### Create Lambda Functions
 resource "aws_lambda_layer_version" "azure-arm-identity" {
   filename                 = "../CFN/azure-arm-identity.zip"
-  layer_name               = "azure-arm-identity"
-  compatible_runtimes      = ["python3.9"]
+  layer_name               = "azure-arm-identity-py313"
+  compatible_runtimes      = ["python3.13"]
   compatible_architectures = ["arm64"]
 }
 
 resource "aws_lambda_layer_version" "azure-arm-storage" {
   filename                 = "../CFN/azure-arm-storage.zip"
-  layer_name               = "azure-arm-storage"
-  compatible_runtimes      = ["python3.9"]
+  layer_name               = "azure-arm-storage-py313"
+  compatible_runtimes      = ["python3.13"]
   compatible_architectures = ["arm64"]
 }
 
@@ -415,7 +415,7 @@ resource "aws_lambda_function" "LambdaFunction01" {
   handler                        = "blobcopy-launch-qualification.lambda_handler"
   kms_key_arn                    = aws_kms_key.KMSKey.arn
   role                           = aws_iam_role.LambdaIAM.arn
-  runtime                        = "python3.9"
+  runtime                        = "python3.13"
   memory_size                    = 128
   timeout                        = 90
   reserved_concurrent_executions = 1
@@ -454,7 +454,7 @@ resource "aws_lambda_function" "LambdaFunction02" {
   kms_key_arn                    = aws_kms_key.KMSKey.arn
   layers                         = [aws_lambda_layer_version.azure-arm-identity.arn, aws_lambda_layer_version.azure-arm-storage.arn]
   role                           = aws_iam_role.LambdaIAM.arn
-  runtime                        = "python3.9"
+  runtime                        = "python3.13"
   memory_size                    = 2560
   timeout                        = 900
   reserved_concurrent_executions = 1
@@ -484,7 +484,7 @@ resource "aws_lambda_function" "LambdaFunction03" {
   kms_key_arn   = aws_kms_key.KMSKey.arn
   layers        = [aws_lambda_layer_version.azure-arm-identity.arn, aws_lambda_layer_version.azure-arm-storage.arn]
   role          = aws_iam_role.LambdaIAM.arn
-  runtime       = "python3.9"
+  runtime       = "python3.13"
   memory_size   = 5120
   timeout       = 900
 
@@ -512,7 +512,7 @@ resource "aws_lambda_function" "LambdaFunction04" {
   handler       = "blobcopy-large-file-initiator.lambda_handler"
   kms_key_arn   = aws_kms_key.KMSKey.arn
   role          = aws_iam_role.LambdaIAM.arn
-  runtime       = "python3.9"
+  runtime       = "python3.13"
   memory_size   = 1024
   timeout       = 900
 
@@ -541,7 +541,7 @@ resource "aws_lambda_function" "LambdaFunction05" {
   kms_key_arn   = aws_kms_key.KMSKey.arn
   layers        = [aws_lambda_layer_version.azure-arm-identity.arn, aws_lambda_layer_version.azure-arm-storage.arn]
   role          = aws_iam_role.LambdaIAM.arn
-  runtime       = "python3.9"
+  runtime       = "python3.13"
   memory_size   = 2056
   timeout       = 900
 
@@ -569,7 +569,7 @@ resource "aws_lambda_function" "LambdaFunction06" {
   handler       = "blobcopy-large-file-recombinator.lambda_handler"
   kms_key_arn   = aws_kms_key.KMSKey.arn
   role          = aws_iam_role.LambdaIAM.arn
-  runtime       = "python3.9"
+  runtime       = "python3.13"
   memory_size   = 1024
   timeout       = 900
 
