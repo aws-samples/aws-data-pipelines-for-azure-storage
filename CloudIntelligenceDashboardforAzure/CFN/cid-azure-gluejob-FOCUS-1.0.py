@@ -196,6 +196,8 @@ try:
             .withColumn("ListCost", col("ListCost").cast(DoubleType())) \
             .withColumn("ListUnitPrice", col("ListUnitPrice").cast(DoubleType())) \
             .withColumn("PricingQuantity", col("PricingQuantity").cast(DoubleType())) \
+            .withColumn("SkuId", col("SkuId").cast(StringType())) \
+            .withColumn("SkuPriceId", col("SkuPriceId").cast(StringType())) \
             .withColumn("x_BilledCostInUsd", col("x_BilledCostInUsd").cast(DecimalType(17, 16))) \
             .withColumn("x_BilledUnitPrice", col("x_BilledUnitPrice").cast(DecimalType(23, 22))) \
             .withColumn("x_BillingExchangeRate", col("x_BillingExchangeRate").cast(DecimalType(17, 16))) \
