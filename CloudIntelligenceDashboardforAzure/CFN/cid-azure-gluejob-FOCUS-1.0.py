@@ -239,19 +239,43 @@ from pyspark.sql.functions import trunc
 df2 = df2.withColumn("BILLING_PERIOD", date_format(to_timestamp("BillingPeriodStart"), "yyyy-MM"))
 
 ### Parquet clean up to avoid duplication.
-from pyspark.sql.functions import date_trunc, col
+### For billing periods with regular data: purge and replace
+### For correction rows referencing previous billing periods: merge with existing data and dedupe
+from pyspark.sql.functions import col, coalesce, lit
 
 try:
     s3 = boto3.client('s3')
     response = s3.list_objects_v2(Bucket=var_bucket, Prefix=var_parquet_folder)
     if 'Contents' in response:
-        id_months = df2.select(date_trunc("month", col("BILLING_PERIOD"))).distinct()
-        new_months = [var_parquet_path + 'BILLING_PERIOD=' + f"{row[0].strftime('%Y-%m')}" for row in id_months.collect()]
-        # Purge parquet files from matching partitions keeping only last minute of files
-        print(f"INFO: Starting parquet cleanup for {len(new_months)} billing period partition(s)")
-        for path in new_months:
-            glueContext.purge_s3_path(path, {'retentionPeriod': 0.00069444444})
-            print(f"INFO: Purged files in partition: {path}")
+        # Get all billing periods in incoming data
+        all_months = [row[0] for row in df2.select("BILLING_PERIOD").distinct().collect()]
+        # Get months with regular (non-correction) data
+        regular_data = df2.filter(coalesce(col("ChargeClass"), lit("")) == "")
+        months_with_regular = set(row[0] for row in regular_data.select("BILLING_PERIOD").distinct().collect())
+        
+        print(f"INFO: Starting parquet cleanup for {len(all_months)} billing period partition(s)")
+        for month_str in all_months:
+            path = var_parquet_path + 'BILLING_PERIOD=' + month_str
+            
+            if month_str in months_with_regular:
+                # Has regular data - purge as normal
+                glueContext.purge_s3_path(path, {'retentionPeriod': 0.00069444444})
+                print(f"INFO: Purged files in partition: {path}")
+            else:
+                # Correction-only month - read existing, merge, dedupe
+                try:
+                    existing_df = spark.read.parquet(path).cache()
+                    existing_df.count()
+                    corrections = df2.filter(col("BILLING_PERIOD") == month_str)
+                    merged = existing_df.unionByName(corrections, allowMissingColumns=True)
+                    merged = merged.dropDuplicates(["CommitmentDiscountId", "x_SkuOrderId", "ChargePeriodStart"])
+                    df2 = df2.filter(col("BILLING_PERIOD") != month_str)
+                    glueContext.purge_s3_path(path, {'retentionPeriod': 0})
+                    merged.write.mode("append").parquet(path)
+                    existing_df.unpersist()
+                    print(f"INFO: Merged corrections into partition: {path}")
+                except:
+                    print(f"INFO: No existing data for {month_str}, corrections will be written as new")
     else:
         print("INFO: Parquet folder does not exist. No files to deduplicate")
 except Exception as e:
