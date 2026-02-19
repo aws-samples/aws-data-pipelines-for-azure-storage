@@ -255,7 +255,7 @@ try:
         
         print(f"INFO: Starting parquet cleanup for {len(all_months)} billing period partition(s)")
         for month_str in all_months:
-            path = var_parquet_path + 'BILLING_PERIOD=' + month_str
+            path = var_parquet_path + 'BILLING_PERIOD=' + str(month_str)
             
             if month_str in months_with_regular:
                 # Has regular data - purge as normal
