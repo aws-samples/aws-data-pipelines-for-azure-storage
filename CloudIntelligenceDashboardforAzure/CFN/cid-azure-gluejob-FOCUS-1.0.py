@@ -240,7 +240,7 @@ df2 = df2.withColumn("BILLING_PERIOD", date_format(to_timestamp("BillingPeriodSt
 
 ### Parquet clean up to avoid duplication.
 ### For billing periods with regular data: purge and replace
-### For correction rows referencing previous billing periods: merge with existing data and dedupe
+### For correction rows referencing previous billing periods: replace matching corrections and merge
 from pyspark.sql.functions import col, coalesce, lit
 
 try:
@@ -262,13 +262,18 @@ try:
                 glueContext.purge_s3_path(path, {'retentionPeriod': 0.00069444444})
                 print(f"INFO: Purged files in partition: {path}")
             else:
-                # Correction-only month - read existing, merge, dedupe
+                # Correction-only month - remove old corrections for matching CommitmentDiscountIds, then add new ones
                 try:
                     existing_df = spark.read.parquet(path).cache()
                     existing_df.count()
                     corrections = df2.filter(col("BILLING_PERIOD") == month_str)
-                    merged = existing_df.unionByName(corrections, allowMissingColumns=True)
-                    merged = merged.dropDuplicates(["CommitmentDiscountId", "x_SkuOrderId", "ChargePeriodStart"])
+                    correction_ids = [row[0] for row in corrections.select("CommitmentDiscountId").distinct().collect()]
+                    # Remove only existing correction rows that match incoming CommitmentDiscountIds
+                    cleaned = existing_df.filter(
+                        ~((coalesce(col("ChargeClass"), lit("")) == "Correction") & 
+                          (col("CommitmentDiscountId").isin(correction_ids)))
+                    )
+                    merged = cleaned.unionByName(corrections, allowMissingColumns=True)
                     df2 = df2.filter(col("BILLING_PERIOD") != month_str)
                     glueContext.purge_s3_path(path, {'retentionPeriod': 0})
                     merged.write.mode("append").parquet(path)
