@@ -39,6 +39,11 @@ Metadata:
           - GlueCopySchedule
           - BlobToS3SyncStartDate
       - Label:
+          default: Network Settings (Optional)
+        Parameters:
+          - LambdaVpcId
+          - LambdaSubnetIds
+      - Label:
           default: Advanced Settings (DO NOT CHANGE)
         Parameters:
           - PartitionSize
@@ -182,7 +187,26 @@ Parameters:
     Type: String
     Description: This parameter is no longer used, but is retained here for reference purposes
     Default: "Environment, CostCenter, System, Department"
+
+  ### Network Parameters
+  LambdaVpcId:
+    Type: String
+    Description: Optional. VPC to run the Lambda functions that call Azure in, so they reach Azure from fixed IPs you can allowlist on the storage account. Leave blank to run outside a VPC
+    Default: ""
+  LambdaSubnetIds:
+    Type: CommaDelimitedList
+    Description: Required if LambdaVpcId is set. Private subnet IDs in that VPC, comma-separated. The subnets must route outbound traffic through a NAT gateway (or your egress proxy) with fixed public IPs
+    Default: ""
+
+Rules:
+  LambdaSubnetsRequiredWithVpc:
+    RuleCondition: !Not [!Equals [!Ref LambdaVpcId, ""]]
+    Assertions:
+      - Assert: !Not [!Contains [!Ref LambdaSubnetIds, ""]]
+        AssertDescription: LambdaSubnetIds must list one or more private subnet IDs when LambdaVpcId is set
+
 Conditions:
+  UseLambdaVpc: !Not [!Equals [!Ref LambdaVpcId, ""]]
   IsAzureOverwriteEnabled: !Equals [!Ref AzureOverwritedataEnabled, "true"]
   IsExportFocus: !Equals [!Ref ExportType, "FOCUS"]
   IsExportStandard: !Equals [!Ref ExportType, "Standard"]
@@ -479,6 +503,10 @@ Resources:
               Service:
                 - lambda.amazonaws.com
             Action: sts:AssumeRole
+      ManagedPolicyArns: !If
+        - UseLambdaVpc
+        - - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        - !Ref AWS::NoValue
       Policies:
         - PolicyName: !Sub ${PrefixCode}iap${EnvironmentCode}cidazurelambda
           PolicyDocument:
@@ -543,6 +571,33 @@ Resources:
           Value: security
         - Key: Name
           Value: !Sub ${PrefixCode}iar${EnvironmentCode}cidazurelambda
+
+  ### Security group for the Lambda functions that call Azure (only when LambdaVpcId is set)
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: UseLambdaVpc
+    Properties:
+      GroupDescription: Cloud Intelligence Dashboard for Azure Lambda functions, outbound HTTPS only
+      VpcId: !Ref LambdaVpcId
+      SecurityGroupEgress:
+        - Description: HTTPS to Azure Blob Storage, Entra ID and AWS service endpoints
+          IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Owner
+          Value: !Sub ${OwnerTag}
+        - Key: Environment
+          Value: !Sub ${EnvironmentTag}
+        - Key: Provisioner
+          Value: CFN
+        - Key: Solution
+          Value: AWSCIDforAzure
+        - Key: Rtype
+          Value: security
+        - Key: Name
+          Value: !Sub ${PrefixCode}sgr${EnvironmentCode}cidazurelambda
   EventBridgeIAM:
     Type: AWS::IAM::Role
     Properties:
@@ -1188,6 +1243,12 @@ Resources:
         Size: 512
       DeadLetterConfig:
         TargetArn: !Ref SNSTopicDeadLetterQueue
+      VpcConfig: !If
+        - UseLambdaVpc
+        - SubnetIds: !Ref LambdaSubnetIds
+          SecurityGroupIds:
+            - !Ref LambdaSecurityGroup
+        - !Ref AWS::NoValue
       Tags:
         - Key: Owner
           Value: !Sub ${OwnerTag}
@@ -1226,6 +1287,12 @@ Resources:
         Size: 5120
       DeadLetterConfig:
         TargetArn: !Ref SNSTopicDeadLetterQueue
+      VpcConfig: !If
+        - UseLambdaVpc
+        - SubnetIds: !Ref LambdaSubnetIds
+          SecurityGroupIds:
+            - !Ref LambdaSecurityGroup
+        - !Ref AWS::NoValue
       Tags:
         - Key: Owner
           Value: !Sub ${OwnerTag}
@@ -1299,6 +1366,12 @@ Resources:
         Size: 512
       DeadLetterConfig:
         TargetArn: !Ref SNSTopicDeadLetterQueue
+      VpcConfig: !If
+        - UseLambdaVpc
+        - SubnetIds: !Ref LambdaSubnetIds
+          SecurityGroupIds:
+            - !Ref LambdaSecurityGroup
+        - !Ref AWS::NoValue
       Tags:
         - Key: Owner
           Value: !Sub ${OwnerTag}

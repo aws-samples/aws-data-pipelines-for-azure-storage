@@ -36,6 +36,9 @@ PartitionSize        = "104857600"
 MaxPartitionsPerFile = "100"
 UseFullFilePath      = "true"
 AzureTags            = "Environment, CostCenter, System, Department"
+# Network Settings (Optional)
+LambdaVpcId     = ""
+LambdaSubnetIds = []
 
 # Regions and Availability Zones
 Region = "eu-west-2"

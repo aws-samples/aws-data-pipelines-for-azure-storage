@@ -273,6 +273,44 @@ resource "aws_iam_role" "LambdaIAM" {
   }
 }
 
+### Optional VPC for the Lambda functions that call Azure (only when LambdaVpcId is set)
+locals {
+  use_lambda_vpc = var.LambdaVpcId != ""
+}
+
+resource "aws_iam_role_policy_attachment" "LambdaVPCAccess" {
+  count      = local.use_lambda_vpc ? 1 : 0
+  role       = aws_iam_role.LambdaIAM.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+}
+
+resource "aws_security_group" "LambdaSecurityGroup" {
+  count       = local.use_lambda_vpc ? 1 : 0
+  name        = format("%s%s%s%s", var.PrefixCode, "sgr", var.EnvironmentCode, "cidazurelambda")
+  description = "Cloud Intelligence Dashboard for Azure Lambda functions, outbound HTTPS only"
+  vpc_id      = var.LambdaVpcId
+
+  egress {
+    description = "HTTPS to Azure Blob Storage, Entra ID and AWS service endpoints"
+    protocol    = "tcp"
+    from_port   = 443
+    to_port     = 443
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  lifecycle {
+    precondition {
+      condition     = length(var.LambdaSubnetIds) > 0
+      error_message = "LambdaSubnetIds must list one or more private subnet IDs when LambdaVpcId is set."
+    }
+  }
+
+  tags = {
+    Name  = format("%s%s%s%s", var.PrefixCode, "sgr", var.EnvironmentCode, "cidazurelambda")
+    rtype = "security"
+  }
+}
+
 resource "aws_iam_role_policy" "LambdaIAM" {
   name  = format("%s%s%s%s", var.PrefixCode, "irp", var.EnvironmentCode, "cidazurelambdas3")
   role  = aws_iam_role.LambdaIAM.id
@@ -471,6 +509,16 @@ resource "aws_lambda_function" "LambdaFunction02" {
     mode = "Active"
   }
 
+  dynamic "vpc_config" {
+    for_each = local.use_lambda_vpc ? [1] : []
+    content {
+      subnet_ids         = var.LambdaSubnetIds
+      security_group_ids = [aws_security_group.LambdaSecurityGroup[0].id]
+    }
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.LambdaVPCAccess]
+
   tags = {
     Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda02")
     rtype = "compute"
@@ -499,6 +547,16 @@ resource "aws_lambda_function" "LambdaFunction03" {
   tracing_config {
     mode = "Active"
   }
+
+  dynamic "vpc_config" {
+    for_each = local.use_lambda_vpc ? [1] : []
+    content {
+      subnet_ids         = var.LambdaSubnetIds
+      security_group_ids = [aws_security_group.LambdaSecurityGroup[0].id]
+    }
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.LambdaVPCAccess]
 
   tags = {
     Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda03")
@@ -556,6 +614,16 @@ resource "aws_lambda_function" "LambdaFunction05" {
   tracing_config {
     mode = "Active"
   }
+
+  dynamic "vpc_config" {
+    for_each = local.use_lambda_vpc ? [1] : []
+    content {
+      subnet_ids         = var.LambdaSubnetIds
+      security_group_ids = [aws_security_group.LambdaSecurityGroup[0].id]
+    }
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.LambdaVPCAccess]
 
   tags = {
     Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda05")

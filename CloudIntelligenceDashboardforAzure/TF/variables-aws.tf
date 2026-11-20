@@ -158,6 +158,18 @@ variable "AzureTags" {
   default     = "'Environment', 'CostCenter', 'System,', 'Department'"
 }
 
+# Network Settings (Optional)
+variable "LambdaVpcId" {
+  description = "Optional. VPC to run the Lambda functions that call Azure in, so they reach Azure from fixed IPs you can allowlist on the storage account. Leave blank to run outside a VPC"
+  type        = string
+  default     = ""
+}
+variable "LambdaSubnetIds" {
+  description = "Required if LambdaVpcId is set. Private subnet IDs in that VPC. The subnets must route outbound traffic through a NAT gateway (or your egress proxy) with fixed public IPs"
+  type        = list(string)
+  default     = []
+}
+
 # Regions and Availability Zones
 variable "Region" {
   description = "AWS deployment region"
