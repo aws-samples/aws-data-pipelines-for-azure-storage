@@ -278,10 +278,29 @@ locals {
   use_lambda_vpc = var.LambdaVpcId != ""
 }
 
-resource "aws_iam_role_policy_attachment" "LambdaVPCAccess" {
-  count      = local.use_lambda_vpc ? 1 : 0
-  role       = aws_iam_role.LambdaIAM.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+resource "aws_iam_role_policy" "LambdaVPCAccess" {
+  count = local.use_lambda_vpc ? 1 : 0
+  name  = format("%s%s%s%s", var.PrefixCode, "irp", var.EnvironmentCode, "cidazurelambdavpc")
+  role  = aws_iam_role.LambdaIAM.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        # Lets Lambda create the network interfaces it uses in your subnets. Lambda requires Resource "*"
+        # https://docs.aws.amazon.com/lambda/latest/dg/configuration-vpc.html#configuration-vpc-permissions
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateNetworkInterface",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DescribeSubnets",
+          "ec2:DeleteNetworkInterface",
+          "ec2:AssignPrivateIpAddresses",
+          "ec2:UnassignPrivateIpAddresses"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
 
 resource "aws_security_group" "LambdaSecurityGroup" {
@@ -517,7 +536,7 @@ resource "aws_lambda_function" "LambdaFunction02" {
     }
   }
 
-  depends_on = [aws_iam_role_policy_attachment.LambdaVPCAccess]
+  depends_on = [aws_iam_role_policy.LambdaVPCAccess]
 
   tags = {
     Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda02")
@@ -556,7 +575,7 @@ resource "aws_lambda_function" "LambdaFunction03" {
     }
   }
 
-  depends_on = [aws_iam_role_policy_attachment.LambdaVPCAccess]
+  depends_on = [aws_iam_role_policy.LambdaVPCAccess]
 
   tags = {
     Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda03")
@@ -623,7 +642,7 @@ resource "aws_lambda_function" "LambdaFunction05" {
     }
   }
 
-  depends_on = [aws_iam_role_policy_attachment.LambdaVPCAccess]
+  depends_on = [aws_iam_role_policy.LambdaVPCAccess]
 
   tags = {
     Name  = format("%s%s%s%s", var.PrefixCode, "lmd", var.EnvironmentCode, "cidazurelambda05")

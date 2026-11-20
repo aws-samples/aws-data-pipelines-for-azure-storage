@@ -503,11 +503,25 @@ Resources:
               Service:
                 - lambda.amazonaws.com
             Action: sts:AssumeRole
-      ManagedPolicyArns: !If
-        - UseLambdaVpc
-        - - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
-        - !Ref AWS::NoValue
       Policies:
+        - !If
+          - UseLambdaVpc
+          - PolicyName: !Sub ${PrefixCode}iap${EnvironmentCode}cidazurelambdavpc
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                # Lets Lambda create the network interfaces it uses in your subnets. Lambda requires Resource "*"
+                # https://docs.aws.amazon.com/lambda/latest/dg/configuration-vpc.html#configuration-vpc-permissions
+                - Effect: Allow
+                  Action:
+                    - ec2:CreateNetworkInterface
+                    - ec2:DescribeNetworkInterfaces
+                    - ec2:DescribeSubnets
+                    - ec2:DeleteNetworkInterface
+                    - ec2:AssignPrivateIpAddresses
+                    - ec2:UnassignPrivateIpAddresses
+                  Resource: "*"
+          - !Ref AWS::NoValue
         - PolicyName: !Sub ${PrefixCode}iap${EnvironmentCode}cidazurelambda
           PolicyDocument:
             Version: "2012-10-17"
