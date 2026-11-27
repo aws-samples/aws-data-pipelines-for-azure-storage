@@ -12,6 +12,7 @@ QuickSightServiceRole = "aws-quicksight-service-role-v0"
 AzureBlobURL       = "https://<mystorageaccount>.blob.core.windows.net/"
 AzureApplicationID = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 AzureTenantID      = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+AzureAuthMethod    = "ClientSecret" # or "FederatedIdentity" for no stored client secret
 AzureSecretKey     = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 # END: Not Required when using Azure Example templates
 AccountType        = "MCA"

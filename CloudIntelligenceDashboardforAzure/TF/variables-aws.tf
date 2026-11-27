@@ -53,8 +53,18 @@ variable "AzureTenantID" {
   type        = string
   default     = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 }
+variable "AzureAuthMethod" {
+  description = "How the Lambda functions sign in to Microsoft Entra ID. ClientSecret stores the app registration client secret in Secrets Manager. FederatedIdentity stores no secret: the Lambda role uses IAM outbound identity federation, and the app registration needs a federated identity credential (see the azure_federated_credential outputs)."
+  type        = string
+  default     = "ClientSecret"
+
+  validation {
+    condition     = var.AzureAuthMethod == "ClientSecret" || var.AzureAuthMethod == "FederatedIdentity"
+    error_message = "valid values: ClientSecret, FederatedIdentity"
+  }
+}
 variable "AzureSecretKey" {
-  description = "Microsoft Azure Client Secret"
+  description = "Microsoft Azure Client Secret. Only used when AzureAuthMethod is ClientSecret"
   type        = string
   default     = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 }

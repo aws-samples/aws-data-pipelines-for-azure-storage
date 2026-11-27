@@ -81,6 +81,34 @@ To deploy using Cloudformation or Terraform, follow instructions in the [Cloud I
 
 To understand how the Azure Cost Usage files should be provided, take a look at the dataset examples download [here](https://microsoft.github.io/finops-toolkit/open-data#download-open-data).
 
+### Sign in to Microsoft Entra ID without a client secret (optional)
+
+By default the Lambda functions sign in to Microsoft Entra ID with the app registration's client secret, stored in AWS Secrets Manager. Set `AzureAuthMethod` to `FederatedIdentity` to store no Azure credential at all. The Lambda execution role then gets a short-lived token from AWS STS ([IAM outbound identity federation](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_outbound.html)), and Entra ID trusts it through a [federated identity credential](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation). There is no secret to store, rotate or let expire.
+
+1. Enable outbound identity federation once in the AWS account, and note the issuer URL:
+
+   ```
+   aws iam enable-outbound-web-identity-federation
+   aws iam get-outbound-web-identity-federation-info --query IssuerIdentifier --output text
+   ```
+
+2. Deploy with `AzureAuthMethod` set to `FederatedIdentity` (CloudFormation parameter, or `terraform.tfvars`). `AzureSecretKey` is not used. Upload the updated Lambda zip files to your source bucket first.
+
+3. Add a federated identity credential to the Entra ID app registration. Use the issuer from step 1, and the Lambda role ARN from the `AzureFederatedCredentialSubject` stack output (Terraform: `azure_federated_credential_subject`):
+
+   ```
+   az ad app federated-credential create --id <AzureApplicationID> --parameters '{
+     "name": "cid-azure-lambda",
+     "issuer": "<IssuerIdentifier>",
+     "subject": "arn:aws:iam::<account-id>:role/<PrefixCode>iar<EnvironmentCode>cidazurelambda",
+     "audiences": ["api://AzureADTokenExchange"]
+   }'
+   ```
+
+4. If you are switching an existing deployment, delete the app registration's client secret after the next successful copy (`az ad app credential delete`).
+
+The app registration keeps its existing role on the storage account (for example *Storage Blob Data Reader*).
+
 ---
 
 ## Contributing
