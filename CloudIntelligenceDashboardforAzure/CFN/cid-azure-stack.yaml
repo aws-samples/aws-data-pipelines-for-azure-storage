@@ -21,6 +21,7 @@ Metadata:
           - AzureBlobURL
           - AzureApplicationID
           - AzureTenantID
+          - AzureAuthMethod
           - AzureSecretKey
           - AzureDateFormat
           - AzureFolderPath
@@ -104,9 +105,16 @@ Parameters:
     Description: Microsoft Azure Tenant ID
     Default: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
     NoEcho: true
+  AzureAuthMethod:
+    Type: String
+    Description: How the Lambda functions sign in to Microsoft Entra ID. "ClientSecret" stores the app registration client secret in Secrets Manager. "FederatedIdentity" stores no secret; the Lambda role uses IAM outbound identity federation, and the app registration needs a federated identity credential (see the AzureFederatedCredential outputs). Requires outbound identity federation to be enabled in this AWS account
+    Default: ClientSecret
+    AllowedValues:
+      - ClientSecret
+      - FederatedIdentity
   AzureSecretKey:
     Type: String
-    Description: Microsoft Azure Client Secret
+    Description: Microsoft Azure Client Secret. Only used when AzureAuthMethod is ClientSecret
     Default: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     NoEcho: true
   AzureDateFormat:
@@ -211,6 +219,7 @@ Conditions:
   IsExportFocus: !Equals [!Ref ExportType, "FOCUS"]
   IsExportStandard: !Equals [!Ref ExportType, "Standard"]
   IsVersion1r2: !Equals [!Ref AzureFocusVersion, "v1.0r2"]
+  UseFederatedIdentity: !Equals [!Ref AzureAuthMethod, "FederatedIdentity"]
 
 Resources:
   ### Create a Resource Group for CloudFormation resources
@@ -258,21 +267,24 @@ Resources:
       Name: !Sub ${PrefixCode}sms${EnvironmentCode}cidazure
       Description: Cloud Intelligence Dashboard Secrets
       KmsKeyId: !GetAtt KMSKey.Arn
-      SecretString: !Sub |
-        {
-          "bloburl":"${AzureBlobURL}",
-          "tenantid":"${AzureTenantID}",
-          "appid":"${AzureApplicationID}",
-          "appsecret":"${AzureSecretKey}",
-          "bucket_name":"${S3Bucket}",
-          "isactive":"True",
-          "begindate":"${BlobToS3SyncStartDate}",
-          "sns_arn_l1":"${SNSTopicL1L2}",
-          "sns_arn_l2":"${SNSTopicL2L3}",
-          "sns_arn_l3":"${SNSTopicLargeFileInit}",
-          "sns_arn_l4":"${SNSTopicLargeFilePart}",
-          "sns_arn_l5":"${SNSTopicLargeFileRecomb}"
-        }
+      SecretString: !Sub
+        - |
+          {
+            "bloburl":"${AzureBlobURL}",
+            "tenantid":"${AzureTenantID}",
+            "appid":"${AzureApplicationID}",
+            "appsecret":"${AzureAppSecret}",
+            "authmethod":"${AzureAuthMethod}",
+            "bucket_name":"${S3Bucket}",
+            "isactive":"True",
+            "begindate":"${BlobToS3SyncStartDate}",
+            "sns_arn_l1":"${SNSTopicL1L2}",
+            "sns_arn_l2":"${SNSTopicL2L3}",
+            "sns_arn_l3":"${SNSTopicLargeFileInit}",
+            "sns_arn_l4":"${SNSTopicLargeFilePart}",
+            "sns_arn_l5":"${SNSTopicLargeFileRecomb}"
+          }
+        - AzureAppSecret: !If [UseFederatedIdentity, "", !Ref AzureSecretKey]
       Tags:
         - Key: Owner
           Value: !Sub ${OwnerTag}
@@ -572,6 +584,18 @@ Resources:
                   - logs:CreateLogGroup
                 Resource:
                   - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+              # IAM outbound identity federation: a short-lived JWT that only Microsoft Entra ID accepts
+              - !If
+                - UseFederatedIdentity
+                - Effect: Allow
+                  Action:
+                    - sts:GetWebIdentityToken
+                  Resource: "*"
+                  Condition:
+                    ForAnyValue:StringEquals:
+                      sts:IdentityTokenAudience:
+                        - api://AzureADTokenExchange
+                - !Ref AWS::NoValue
       Tags:
         - Key: Owner
           Value: !Sub ${OwnerTag}
@@ -2042,3 +2066,17 @@ Resources:
             }
           ]
         }
+
+Outputs:
+  AzureFederatedCredentialSubject:
+    Condition: UseFederatedIdentity
+    Description: Subject for the federated identity credential on the Microsoft Entra ID app registration
+    Value: !GetAtt LambdaIAM.Arn
+  AzureFederatedCredentialAudience:
+    Condition: UseFederatedIdentity
+    Description: Audience for the federated identity credential on the Microsoft Entra ID app registration
+    Value: api://AzureADTokenExchange
+  AzureFederatedCredentialIssuer:
+    Condition: UseFederatedIdentity
+    Description: The issuer is unique to this AWS account. Read it with 'aws iam get-outbound-web-identity-federation-info' (IssuerIdentifier)
+    Value: !Sub "See IssuerIdentifier in 'aws iam get-outbound-web-identity-federation-info' for account ${AWS::AccountId}"

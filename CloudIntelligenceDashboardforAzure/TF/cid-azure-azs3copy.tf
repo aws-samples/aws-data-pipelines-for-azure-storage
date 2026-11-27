@@ -59,7 +59,8 @@ resource "aws_secretsmanager_secret_version" "SecretsManagerSecret" {
     bloburl     = var.AzureBlobURL
     tenantid    = var.AzureTenantID
     appid       = var.AzureApplicationID
-    appsecret   = var.AzureSecretKey
+    appsecret   = var.AzureAuthMethod == "FederatedIdentity" ? "" : var.AzureSecretKey
+    authmethod  = var.AzureAuthMethod
     bucket_name = "${aws_s3_bucket.S3Bucket.bucket}"
     isactive    = "True"
     begindate   = var.BlobToS3SyncStartDate
@@ -79,6 +80,7 @@ resource "aws_secretsmanager_secret_version" "SecretsManagerSecret" {
 #     tenantid    = data.azurerm_client_config.current.tenant_id
 #     appid       = azuread_application.AppRegistration.application_id
 #     appsecret   = azuread_application_password.AppPassword.value
+#     authmethod  = "ClientSecret"
 #     bucket_name = "${aws_s3_bucket.S3Bucket.bucket}"
 #     isactive    = "True"
 #     begindate   = var.BlobToS3SyncStartDate
@@ -335,7 +337,7 @@ resource "aws_iam_role_policy" "LambdaIAM" {
   role  = aws_iam_role.LambdaIAM.id
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         Action = [
           "s3:GetBucketLocation",
@@ -402,7 +404,20 @@ resource "aws_iam_role_policy" "LambdaIAM" {
           "arn:aws:logs:${var.Region}:${data.aws_caller_identity.current.account_id}:log-group:*"
         ]
       }
-    ]
+      ],
+      # IAM outbound identity federation: a short-lived JWT that only Microsoft Entra ID accepts
+      var.AzureAuthMethod == "FederatedIdentity" ? [
+        {
+          Action   = ["sts:GetWebIdentityToken"]
+          Effect   = "Allow"
+          Resource = ["*"]
+          Condition = {
+            "ForAnyValue:StringEquals" = {
+              "sts:IdentityTokenAudience" = ["api://AzureADTokenExchange"]
+            }
+          }
+        }
+    ] : [])
   })
 }
 
@@ -1105,4 +1120,14 @@ resource "aws_cloudwatch_dashboard" "CloudwatchDashboard" {
     ]
   }
 EOF
+}
+
+### Values for the federated identity credential on the Microsoft Entra ID app registration (FederatedIdentity only)
+output "azure_federated_credential_subject" {
+  description = "Subject for the federated identity credential"
+  value       = var.AzureAuthMethod == "FederatedIdentity" ? aws_iam_role.LambdaIAM.arn : null
+}
+output "azure_federated_credential_audience" {
+  description = "Audience for the federated identity credential"
+  value       = var.AzureAuthMethod == "FederatedIdentity" ? "api://AzureADTokenExchange" : null
 }
